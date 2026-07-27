@@ -1,0 +1,20 @@
+===================================
+   Iniciando Torneos App...
+===================================
+
+[1/3] Iniciando servidor (puerto 3001)...
+ERROR: No es compatible la redirecci¢n de entradas, saliendo inmediatamente
+       del proceso.
+[2/3] Iniciando cliente Vite (puerto 5173)...
+ERROR: No es compatible la redirecci¢n de entradas, saliendo inmediatamente
+       del proceso.
+[3/3] Abriendo navegador...
+
+===================================
+   App iniciada correctamente!
+   Servidor: http://localhost:3001
+   Cliente:  http://localhost:5173
+===================================
+
+Para detener: ejecuta "Detener App.vbs" o "stop.bat"
+

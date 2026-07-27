@@ -6,7 +6,7 @@ import {
   removeParticipant, generateBracket, randomizeParticipants,
   setMatchResult, undoMatchResult, incrementScore,
   getOverlaySettings, saveOverlaySettings, resetOverlaySettings,
-  updateParticipant, nextMatch, SOCKET_URL
+  updateParticipant, nextMatch, SOCKET_URL, API_BASE, API_ORIGIN
 } from '../api'
 import { useAuth } from '../context/AuthContext'
 import MatchChat from '../components/MatchChat'
@@ -810,8 +810,8 @@ function OverlayPanel({ tournamentId }) {
 
   if (!cfg) return <div className="text-gray-400 p-6">Cargando configuración...</div>
 
-  const scoreboardUrl = `${window.location.origin}/overlays/scoreboard/${tournamentId}`
-  const bracketUrl = `${window.location.origin}/overlays/bracket/${tournamentId}`
+  const scoreboardUrl = `${API_ORIGIN}/overlays/scoreboard/${tournamentId}`
+  const bracketUrl = `${API_ORIGIN}/overlays/bracket/${tournamentId}`
 
     const styles = [
       { v: 'esports-gold', l: 'Esports Gold', d: 'Premium dorado' },
