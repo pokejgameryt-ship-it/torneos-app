@@ -1,0 +1,13 @@
+[Unit]
+Description=Torneos App Quick Tunnel
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/torneos-tunnel
+Restart=always
+RestartSec=10
+User=ubuntu
+
+[Install]
+WantedBy=multi-user.target

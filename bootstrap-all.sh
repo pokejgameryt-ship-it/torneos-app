@@ -51,6 +51,14 @@ nvm use 20
 nvm alias default 20
 node --version
 
+# 4b. CREAR SYMLINKS para acceso global desde sesiones no-interactivas (SSH, systemd, etc.)
+echo "[4b] Creando symlinks en /usr/local/bin..."
+sudo ln -sf "$NVM_DIR/versions/node/$(node -v)/bin/node" /usr/local/bin/node
+sudo ln -sf "$NVM_DIR/versions/node/$(node -v)/bin/npm" /usr/local/bin/npm
+sudo ln -sf "$NVM_DIR/versions/node/$(node -v)/bin/npx" /usr/local/bin/npx
+sudo ln -sf "$NVM_DIR/versions/node/$(node -v)/bin/pm2" /usr/local/bin/pm2
+echo "  Symlinks: node, npm, npx, pm2 -> /usr/local/bin"
+
 # 5. INSTALAR PM2
 echo "[5/7] Instalando pm2..."
 npm install -g pm2
