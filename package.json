@@ -1,0 +1,16 @@
+{
+  "name": "torneos-app",
+  "version": "1.0.0",
+  "description": "App para crear torneos de videojuegos",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && node index.js",
+    "client": "cd client && npm run dev",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "build": "cd client && npm run build",
+    "start": "start /B cmd /c \"cd server && node index.js > nul 2>&1\" && timeout /t 2 /nobreak > nul && start \"\" \"http://localhost:5173\" && cd client && npx vite --host > nul 2>&1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

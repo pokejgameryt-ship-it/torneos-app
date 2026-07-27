@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scoreboard Overlay</title>
+  <link href="https://fonts.googleapis.com/css2?family=Impact&family=Orbitron:wght@400;700;900&family=Press+Start+2P&family=Bebas+Neue&family=Roboto+Condensed:wght@400;700&family=Inter:wght@300;400;600;700;900&family=Rajdhani:wght@400;500;600;700&family=Teko:wght@400;500;600;700&family=Exo+2:wght@400;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Barlow+Condensed:wght@400;600;700;800&family=Russo+One&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: transparent; overflow: visible; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+    /* CANVAS */
+    .sb {
+      position: relative; width: 3680px; height: 560px;
+      overflow: visible;
+      font-family: var(--sb-font, 'Impact', sans-serif);
+    }
+
+    /* SHAPE WRAPPER — only holds bg+ve, does NOT clip */
+    .sb-shape {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    }
+
+    /* BG — gets clip-path per shape */
+    .sb-bg {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      overflow: hidden;
+    }
+
+    /* VE — gets same clip-path as bg */
+    .sb-ve {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      overflow: hidden; pointer-events: none;
+    }
+
+    /* =============================================
+       SHAPES — clip-path on .sb-bg and .sb-ve ONLY
+       .sb-content is NEVER clipped
+    ============================================= */
+    .sh-rect .sb-bg, .sh-rect .sb-ve { clip-path: none; }
+
+    .sh-rounded .sb-bg, .sh-rounded .sb-ve { clip-path: inset(0 round 40px); }
+
+    .sh-pill .sb-bg, .sh-pill .sb-ve { clip-path: inset(0 round 280px); }
+
+    .sh-sloped .sb-bg, .sh-sloped .sb-ve {
+      clip-path: polygon(10% 0, 90% 0, 100% 100%, 0 100%);
+    }
+
+    .sh-diamond .sb-bg, .sh-diamond .sb-ve {
+      clip-path: polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%);
+    }
+
+    .sh-arrow .sb-bg, .sh-arrow .sb-ve {
+      clip-path: polygon(5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%, 0 50%);
+    }
+
+    .sh-hex .sb-bg, .sh-hex .sb-ve {
+      clip-path: polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0 50%);
+    }
+
+    .sh-notch .sb-bg, .sh-notch .sb-ve {
+      clip-path: polygon(0 0, 100% 0, 100% 85%, 75% 100%, 50% 88%, 25% 100%, 0 85%);
+    }
+    .sh-notch .sb-content {
+      padding-bottom: 60px;
+    }
+
+    .sh-shield .sb-bg, .sh-shield .sb-ve {
+      clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%);
+    }
+
+    .sh-invert .sb-bg, .sh-invert .sb-ve {
+      clip-path: polygon(0 0, 100% 0, 90% 100%, 10% 100%);
+    }
+
+    .sh-trapezoid .sb-bg, .sh-trapezoid .sb-ve {
+      clip-path: polygon(5% 0, 95% 0, 100% 100%, 0 100%);
+    }
+
+    .sh-star .sb-bg, .sh-star .sb-ve {
+      clip-path: polygon(50% 0, 63% 35%, 100% 35%, 70% 57%, 82% 91%, 50% 70%, 18% 91%, 30% 57%, 0 35%, 37% 35%);
+    }
+
+    .sh-octagon .sb-bg, .sh-octagon .sb-ve {
+      clip-path: polygon(6% 0, 94% 0, 100% 12%, 100% 88%, 94% 100%, 6% 100%, 0 88%, 0 12%);
+    }
+
+    .sh-angle .sb-bg, .sh-angle .sb-ve {
+      clip-path: polygon(6% 0, 94% 0, 100% 50%, 94% 100%, 6% 100%, 0 50%);
+    }
+
+    .sh-crest .sb-bg, .sh-crest .sb-ve {
+      clip-path: polygon(0 0, 100% 0, 100% 75%, 80% 100%, 50% 85%, 20% 100%, 0 75%);
+    }
+    .sh-crest .sb-content {
+      padding-bottom: 60px;
+    }
+
+    /* =============================================
+       DECO ELEMENTS — symmetric side effects
+    ============================================= */
+    .deco-left, .deco-right {
+      position: absolute; top: 0; width: 35%; height: 100%;
+      display: none;
+    }
+    .deco-left { left: 0; }
+    .deco-right { right: 0; }
+
+    .ve-diamond .deco-left, .ve-diamond .deco-right,
+    .ve-arrow .deco-left, .ve-arrow .deco-right,
+    .ve-viper .deco-left, .ve-viper .deco-right,
+    .ve-phoenix .deco-left, .ve-phoenix .deco-right { display: block; }
+
+    .ve-diamond .deco-left {
+      background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 40%, transparent), transparent);
+      clip-path: polygon(0 15%, 90% 0, 50% 50%, 90% 100%, 0 85%);
+    }
+    .ve-diamond .deco-right {
+      background: linear-gradient(270deg, color-mix(in srgb, var(--pc) 40%, transparent), transparent);
+      clip-path: polygon(100% 15%, 10% 0, 50% 50%, 10% 100%, 100% 85%);
+    }
+
+    .ve-arrow .deco-left {
+      background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 70%, transparent), transparent);
+      clip-path: polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%, 15% 50%);
+    }
+    .ve-arrow .deco-right {
+      background: linear-gradient(270deg, color-mix(in srgb, var(--pc) 70%, transparent), transparent);
+      clip-path: polygon(100% 0, 15% 0, 0 50%, 15% 100%, 100% 100%, 85% 50%);
+    }
+
+    .ve-viper .deco-left {
+      background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 55%, transparent), transparent);
+      clip-path: polygon(0 0, 80% 0, 45% 20%, 80% 40%, 45% 60%, 80% 80%, 45% 100%, 0 100%);
+    }
+    .ve-viper .deco-right {
+      background: linear-gradient(270deg, color-mix(in srgb, var(--pc) 55%, transparent), transparent);
+      clip-path: polygon(100% 0, 20% 0, 55% 20%, 20% 40%, 55% 60%, 20% 80%, 55% 100%, 100% 100%);
+    }
+
+    .ve-phoenix .deco-left {
+      background: linear-gradient(90deg, var(--pc), var(--pc2), color-mix(in srgb, var(--pc) 10%, transparent));
+      clip-path: polygon(0 0, 95% 0, 60% 10%, 85% 22%, 45% 35%, 80% 48%, 45% 60%, 85% 73%, 60% 86%, 95% 100%, 0 100%);
+    }
+    .ve-phoenix .deco-right {
+      background: linear-gradient(270deg, var(--pc), var(--pc2), color-mix(in srgb, var(--pc) 10%, transparent));
+      clip-path: polygon(100% 0, 5% 0, 40% 10%, 15% 22%, 55% 35%, 20% 48%, 55% 60%, 15% 73%, 40% 86%, 5% 100%, 100% 100%);
+    }
+
+    .ve-banner .sb-ve::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 16px; z-index: 5;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 15%, transparent), var(--pc), color-mix(in srgb, var(--pc) 15%, transparent));
+    }
+
+    .ve-stripe .sb-ve::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 16px; z-index: 5;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 15%, transparent), var(--pc), color-mix(in srgb, var(--pc) 15%, transparent));
+    }
+
+    .ve-frame .sb-ve::before {
+      content: ''; position: absolute; top: 12px; left: 12px; right: 12px; bottom: 12px;
+      border: 4px solid color-mix(in srgb, var(--pc) 50%, transparent);
+      border-radius: inherit; z-index: 5;
+    }
+
+    .ve-glow .sb {
+      box-shadow: 0 0 60px color-mix(in srgb, var(--pc) 40%, transparent),
+                  0 0 120px color-mix(in srgb, var(--pc) 15%, transparent);
+    }
+
+    /* =============================================
+       CONTENT — NEVER clipped, always full size
+    ============================================= */
+    .sb-content {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2;
+    }
+
+    .left-container, .right-container {
+      flex: 1; height: 100%;
+      display: flex; align-items: center;
+      z-index: 1; min-width: 0;
+    }
+    .left-container {
+      justify-content: flex-end;
+      gap: 40px;
+      padding: 0 40px 0 60px;
+    }
+    .right-container {
+      justify-content: flex-start;
+      gap: 40px;
+      padding: 0 60px 0 40px;
+    }
+
+    .pname {
+      font-size: 88px; font-weight: 800; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.1; flex: 1; min-width: 0;
+    }
+    .left-container .pname { text-align: right; }
+    .right-container .pname { text-align: left; }
+
+    .pflag {
+      width: 130px; height: 130px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; z-index: 1;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+    }
+    .pflag img.flag { width: 130px; height: 130px; }
+
+    .pscore {
+      width: 220px; height: 220px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 110px; font-weight: 900;
+      flex-shrink: 0; z-index: 3;
+    }
+
+    .mid {
+      flex: 0 0 560px; height: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 24px; z-index: 2;
+    }
+    .phase {
+      font-size: 34px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 5px;
+      text-align: center; width: 100%; padding: 0 16px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .fmt {
+      font-size: 44px; font-weight: 800;
+      padding: 8px 50px; text-transform: uppercase;
+      letter-spacing: 4px;
+    }
+
+    .tname {
+      position: absolute; bottom: -70px; left: 50%; transform: translateX(-50%);
+      font-size: 36px; font-weight: 600; letter-spacing: 5px;
+      text-transform: uppercase; white-space: nowrap; z-index: 3;
+    }
+    .logo {
+      max-width: 360px; max-height: 260px; object-fit: contain;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+    }
+    .sponsor {
+      position: absolute; top: -70px; left: 50%; transform: translateX(-50%);
+      font-size: 32px; letter-spacing: 6px; text-transform: uppercase;
+      white-space: nowrap; opacity: 0.7; z-index: 3;
+    }
+
+    /* Score Shapes */
+    .ss-square { border-radius: 16px; }
+    .ss-rounded { border-radius: 56px; }
+    .ss-pill { border-radius: 200px; }
+    .ss-circle { border-radius: 50%; }
+    .ss-hexagon { clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); }
+    .ss-diamond { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+    .ss-octagon { clip-path: polygon(15% 0%, 85% 0%, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0% 85%, 0% 15%); }
+
+    /* CUSTOM COLORS */
+    .custom-colors .pname { color: var(--cc, var(--pc)) !important; -webkit-text-fill-color: var(--cc, var(--pc)) !important; background: none !important; text-shadow: none !important; }
+    .custom-colors .right-container .pname { color: var(--cc2, var(--pc2)) !important; -webkit-text-fill-color: var(--cc2, var(--pc2)) !important; }
+    .custom-colors .pscore { background: var(--cc, var(--pc)) !important; color: #fff !important; border-color: var(--cc, var(--pc)) !important; box-shadow: none !important; text-shadow: none !important; }
+    .custom-colors .right-container .pscore { background: var(--cc2, var(--pc2)) !important; }
+    .custom-colors .phase { color: var(--cc, var(--pc)) !important; -webkit-text-fill-color: var(--cc, var(--pc)) !important; background: none !important; }
+    .custom-colors .fmt { background: var(--cc2, var(--pc2)) !important; color: #fff !important; border: none !important; box-shadow: none !important; }
+    .custom-colors .tname { color: var(--cc2, var(--pc2)) !important; }
+    .custom-colors .sponsor { color: var(--cc2, var(--pc2)) !important; }
+
+    /* =============================================
+       STYLES
+    ============================================= */
+    .s-esports-gold .sb-bg { background: linear-gradient(180deg, #0d0f14, #151820, #1a1e28); }
+    .s-esports-gold .pname { background: linear-gradient(135deg, var(--pc, #d4af37), var(--pc2, #f5d77a)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .s-esports-gold .pscore { background: linear-gradient(135deg, #1a1e28, #0d0f14); border: 8px solid var(--pc, #d4af37); color: var(--pc, #d4af37); }
+    .s-esports-gold .mid { background: linear-gradient(180deg, rgba(13,15,20,0.95), rgba(21,24,32,0.9)); border-left: 4px solid color-mix(in srgb, var(--pc, #d4af37) 30%, transparent); border-right: 4px solid color-mix(in srgb, var(--pc, #d4af37) 30%, transparent); }
+    .s-esports-gold .phase { background: linear-gradient(135deg, var(--pc, #d4af37), var(--pc2, #b8962e)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .s-esports-gold .fmt { background: linear-gradient(135deg, var(--pc, #d4af37), var(--pc2, #b8962e)); color: #0d0f14; }
+    .s-esports-gold .tname { color: color-mix(in srgb, var(--pc, #d4af37) 50%, transparent); }
+
+    .s-cyber-neon .sb-bg { background: linear-gradient(135deg, #0a0015, #0d0020, #0a0015); border: 8px solid var(--pc, #00f0ff); }
+    .s-cyber-neon .pname { color: var(--pc, #00f0ff); text-shadow: 0 0 12px color-mix(in srgb, var(--pc, #00f0ff) 30%, transparent); }
+    .s-cyber-neon .pscore { background: color-mix(in srgb, var(--pc, #00f0ff) 8%, transparent); border: 8px solid var(--pc, #00f0ff); color: var(--pc, #00f0ff); }
+    .s-cyber-neon .mid { background: linear-gradient(180deg, color-mix(in srgb, var(--pc, #00f0ff) 15%, transparent), transparent); border-left: 4px solid color-mix(in srgb, var(--pc, #00f0ff) 30%, transparent); border-right: 4px solid color-mix(in srgb, var(--pc, #00f0ff) 30%, transparent); }
+    .s-cyber-neon .phase { color: var(--pc2, #ff00aa); }
+    .s-cyber-neon .fmt { background: transparent; border: 4px solid var(--pc2, #ff00aa); color: var(--pc2, #ff00aa); }
+    .s-cyber-neon .tname { color: color-mix(in srgb, var(--pc, #00f0ff) 40%, transparent); }
+
+    .s-smash .sb-bg { background: linear-gradient(180deg, #1a1a2e, #16213e, #0f3460); }
+    .s-smash .pname { color: #fff; text-transform: uppercase; text-shadow: 8px 8px 0 #000; }
+    .s-smash .pscore { background: var(--pc, #e94560); color: #fff; }
+    .s-smash .mid { background: linear-gradient(180deg, color-mix(in srgb, var(--pc, #e94560) 20%, transparent), transparent); }
+    .s-smash .phase { color: var(--pc, #e94560); text-transform: uppercase; letter-spacing: 8px; }
+    .s-smash .fmt { background: var(--pc2, #533483); color: #fff; }
+    .s-smash .tname { color: color-mix(in srgb, var(--pc, #e94560) 60%, transparent); }
+
+    .s-broadcast .sb-bg { background: linear-gradient(180deg, #1c1c1c, #2a2a2a, #1c1c1c); }
+    .s-broadcast .pname { color: var(--pc, #4da6ff); }
+    .s-broadcast .pscore { background: color-mix(in srgb, var(--pc, #0078d7) 20%, transparent); border: 8px solid var(--pc, #4da6ff); color: var(--pc, #4da6ff); }
+    .s-broadcast .mid { background: #1c1c1c; border-left: 8px solid #444; border-right: 8px solid #444; }
+    .s-broadcast .phase { color: #888; }
+    .s-broadcast .fmt { background: #444; color: #fff; border-radius: 12px; }
+    .s-broadcast .tname { color: #555; }
+
+    .s-fire-ice .sb-bg { background: linear-gradient(135deg, #0c1445, #1a0a2e, #0c1445); }
+    .s-fire-ice .pname { color: var(--pc, #ff7832); }
+    .s-fire-ice .pscore { border: 8px solid var(--pc, #ff7832); color: var(--pc, #ff7832); background: rgba(0,0,0,0.4); }
+    .s-fire-ice .mid { background: linear-gradient(180deg, color-mix(in srgb, var(--pc, #ff7832) 10%, transparent), color-mix(in srgb, var(--pc2, #0096ff) 10%, transparent)); border-left: 4px solid rgba(255,255,255,0.1); border-right: 4px solid rgba(255,255,255,0.1); }
+    .s-fire-ice .phase { background: linear-gradient(90deg, var(--pc, #ff7832), var(--pc2, #00c8ff)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .s-fire-ice .fmt { background: linear-gradient(135deg, var(--pc, #ff7832), #e94560); color: #fff; }
+    .s-fire-ice .tname { color: rgba(255,255,255,0.3); }
+
+    .s-retro .sb-bg { background: #000; }
+    .s-retro .pname { color: #fff; text-shadow: 12px 12px 0 #000; }
+    .s-retro .pscore { background: #111; border: 12px solid var(--pc, #0f0); color: var(--pc, #0f0); }
+    .s-retro .mid { background: #000; border-left: 12px solid var(--pc, #0f0); border-right: 12px solid var(--pc, #0f0); }
+    .s-retro .phase { color: var(--pc, #0f0); }
+    .s-retro .fmt { background: var(--pc, #0f0); color: #000; }
+    .s-retro .tname { color: var(--pc, #0f0); }
+
+    .s-minimal .sb-bg { background: rgba(10,10,10,0.95); }
+    .s-minimal .pname { color: rgba(255,255,255,0.85); letter-spacing: 12px; text-transform: uppercase; }
+    .s-minimal .pscore { background: rgba(255,255,255,0.05); border: 4px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); }
+    .s-minimal .mid { background: rgba(255,255,255,0.03); border-left: 4px solid rgba(255,255,255,0.08); border-right: 4px solid rgba(255,255,255,0.08); }
+    .s-minimal .phase { color: rgba(255,255,255,0.35); letter-spacing: 12px; }
+    .s-minimal .fmt { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); border: 4px solid rgba(255,255,255,0.1); }
+    .s-minimal .tname { color: rgba(255,255,255,0.2); }
+
+    .s-lucha .sb-bg { background: linear-gradient(135deg, #1a0000, #2d0a0a, #1a0000); }
+    .s-lucha .pname { color: #fff; text-transform: uppercase; text-shadow: 8px 8px 0 #000; }
+    .s-lucha .pscore { background: var(--pc, #c41e3a); color: #fff; }
+    .s-lucha .mid { background: linear-gradient(180deg, color-mix(in srgb, var(--pc, #c41e3a) 20%, transparent), color-mix(in srgb, var(--pc2, #16537e) 20%, transparent)); border-left: 8px solid var(--pc, #c41e3a); border-right: 8px solid var(--pc2, #16537e); }
+    .s-lucha .phase { color: var(--pc, #c41e3a); text-transform: uppercase; letter-spacing: 8px; }
+    .s-lucha .fmt { background: linear-gradient(135deg, var(--pc, #c41e3a), var(--pc2, #16537e)); color: #fff; }
+    .s-lucha .tname { color: color-mix(in srgb, var(--pc, #c41e3a) 50%, transparent); }
+
+    .s-glass .sb-bg { background: rgba(255,255,255,0.06); }
+    .s-glass .pname { color: #fff; font-weight: 700; }
+    .s-glass .pscore { background: rgba(255,255,255,0.1); border: 4px solid rgba(255,255,255,0.2); color: #fff; }
+    .s-glass .mid { background: rgba(255,255,255,0.08); border-left: 4px solid rgba(255,255,255,0.1); border-right: 4px solid rgba(255,255,255,0.1); }
+    .s-glass .phase { color: rgba(255,255,255,0.6); }
+    .s-glass .fmt { background: rgba(255,255,255,0.15); color: #fff; border: 4px solid rgba(255,255,255,0.2); }
+    .s-glass .tname { color: rgba(255,255,255,0.3); }
+
+    .s-fgc .sb-bg { background: linear-gradient(180deg, #0a0a0a, #1a1a1a); }
+    .s-fgc .pname { color: #fff; text-transform: uppercase; }
+    .s-fgc .left-container .pscore { background: linear-gradient(180deg, var(--pc, #ff4444), #cc0000); color: #fff; }
+    .s-fgc .right-container .pscore { background: linear-gradient(180deg, var(--pc2, #ffaa00), #cc8800); color: #fff; }
+    .s-fgc .mid { background: linear-gradient(180deg, #111, #0a0a0a); border-left: 8px solid #333; border-right: 8px solid #333; }
+    .s-fgc .phase { color: var(--pc, #ff4444); text-transform: uppercase; }
+    .s-fgc .fmt { background: var(--pc, #ff4444); color: #fff; }
+    .s-fgc .tname { color: #444; }
+
+    .s-anime .sb-bg { background: linear-gradient(135deg, #1a0533, #2d1b69, #1a0533); }
+    .s-anime .pname { color: var(--pc, #ff6b9d); }
+    .s-anime .pscore { background: linear-gradient(135deg, var(--pc, #ff6b9d), var(--pc2, #8a2be2)); color: #fff; }
+    .s-anime .mid { background: linear-gradient(180deg, color-mix(in srgb, var(--pc, #ff6b9d) 15%, transparent), color-mix(in srgb, var(--pc2, #8a2be2) 10%, transparent)); border-left: 4px solid color-mix(in srgb, var(--pc, #ff6b9d) 30%, transparent); border-right: 4px solid color-mix(in srgb, var(--pc, #ff6b9d) 30%, transparent); }
+    .s-anime .phase { color: var(--pc, #ff6b9d); text-transform: uppercase; letter-spacing: 8px; }
+    .s-anime .fmt { background: linear-gradient(135deg, var(--pc, #ff6b9d), var(--pc2, #8a2be2)); color: #fff; }
+    .s-anime .tname { color: color-mix(in srgb, var(--pc, #ff6b9d) 40%, transparent); }
+
+    .s-corporate .sb-bg { background: linear-gradient(180deg, #f5f5f5, #e8e8e8); }
+    .s-corporate .left-container .pname { color: var(--pc2, #1a1a6c); }
+    .s-corporate .right-container .pname { color: var(--pc, #8b0000); }
+    .s-corporate .left-container .pscore { background: var(--pc2, #1a1a6c); color: #fff; }
+    .s-corporate .right-container .pscore { background: var(--pc, #8b0000); color: #fff; }
+    .s-corporate .mid { background: #ddd; border-left: 8px solid #bbb; border-right: 8px solid #bbb; }
+    .s-corporate .phase { color: #666; }
+    .s-corporate .fmt { background: var(--pc2, #1a1a6c); color: #fff; }
+    .s-corporate .tname { color: #999; }
+
+    .s-warzone .sb-bg { background: linear-gradient(180deg, #1a1207, #2a1f0e, #1a1207); }
+    .s-warzone .pname { color: #e8d5a3; text-transform: uppercase; letter-spacing: 4px; }
+    .s-warzone .pscore { background: rgba(200,164,21,0.15); border: 8px solid var(--pc, #c8a415); color: var(--pc, #c8a415); }
+    .s-warzone .mid { background: linear-gradient(180deg, rgba(200,164,21,0.08), transparent); border-left: 4px solid rgba(200,164,21,0.2); border-right: 4px solid rgba(200,164,21,0.2); }
+    .s-warzone .phase { color: var(--pc, #c8a415); text-transform: uppercase; letter-spacing: 8px; }
+    .s-warzone .fmt { background: var(--pc, #c8a415); color: #1a1207; font-weight: 600; }
+    .s-warzone .tname { color: rgba(200,164,21,0.4); }
+
+    .s-crystal .sb-bg { background: linear-gradient(135deg, rgba(15,20,40,0.95), rgba(25,35,60,0.95)); }
+    .s-crystal .pname { color: #c8e0ff; font-weight: 600; }
+    .s-crystal .pscore { background: rgba(100,180,255,0.1); border: 4px solid rgba(100,180,255,0.3); color: #7cb8ff; }
+    .s-crystal .mid { background: rgba(100,180,255,0.05); border-left: 4px solid rgba(100,180,255,0.15); border-right: 4px solid rgba(100,180,255,0.15); }
+    .s-crystal .phase { color: rgba(100,180,255,0.6); letter-spacing: 8px; }
+    .s-crystal .fmt { background: rgba(100,180,255,0.15); color: #7cb8ff; border: 4px solid rgba(100,180,255,0.3); font-weight: 600; }
+    .s-crystal .tname { color: rgba(100,180,255,0.3); }
+
+    .s-royal .sb-bg { background: linear-gradient(135deg, #1a0a2e, #2d1b69, #1a0a2e); }
+    .s-royal .pname { color: var(--pc2, #f1c40f); }
+    .s-royal .pscore { background: linear-gradient(135deg, var(--pc, #9b59b6), #6c3483); color: #fff; border: 4px solid var(--pc2, #f1c40f); }
+    .s-royal .mid { background: linear-gradient(180deg, color-mix(in srgb, var(--pc, #9b59b6) 15%, transparent), transparent); border-left: 4px solid color-mix(in srgb, var(--pc2, #f1c40f) 30%, transparent); border-right: 4px solid color-mix(in srgb, var(--pc2, #f1c40f) 30%, transparent); }
+    .s-royal .phase { color: var(--pc2, #f1c40f); letter-spacing: 8px; }
+    .s-royal .fmt { background: var(--pc2, #f1c40f); color: #1a0a2e; font-weight: 700; }
+    .s-royal .tname { color: color-mix(in srgb, var(--pc2, #f1c40f) 40%, transparent); }
+
+    .s-neon-wave .sb-bg { background: linear-gradient(135deg, #0d0221, #150530, #0d0221); }
+    .s-neon-wave .pname { color: var(--pc, #00e5ff); }
+    .s-neon-wave .pscore { background: transparent; border: 4px solid var(--pc2, #ff4081); color: var(--pc2, #ff4081); }
+    .s-neon-wave .mid { background: linear-gradient(180deg, color-mix(in srgb, var(--pc, #00e5ff) 8%, transparent), transparent); border-left: 4px solid var(--pc, #00e5ff); border-right: 4px solid var(--pc, #00e5ff); }
+    .s-neon-wave .phase { color: var(--pc2, #ff4081); letter-spacing: 8px; }
+    .s-neon-wave .fmt { background: transparent; border: 4px solid var(--pc, #00e5ff); color: var(--pc, #00e5ff); }
+    .s-neon-wave .tname { color: color-mix(in srgb, var(--pc, #00e5ff) 30%, transparent); }
+
+    .s-shadow .sb-bg { background: linear-gradient(180deg, #0a0a0a, #151515, #0a0a0a); }
+    .s-shadow .pname { color: var(--pc, #bdc3c7); text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+    .s-shadow .pscore { background: rgba(0,0,0,0.5); border: 4px solid rgba(255,255,255,0.1); color: var(--pc, #bdc3c7); }
+    .s-shadow .mid { background: rgba(0,0,0,0.3); border-left: 4px solid rgba(255,255,255,0.05); border-right: 4px solid rgba(255,255,255,0.05); }
+    .s-shadow .phase { color: rgba(255,255,255,0.3); letter-spacing: 10px; }
+    .s-shadow .fmt { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); border: 4px solid rgba(255,255,255,0.08); }
+    .s-shadow .tname { color: rgba(255,255,255,0.15); }
+
+    .s-ember .sb-bg { background: linear-gradient(180deg, #1a0a00, #2d1500, #1a0a00); }
+    .s-ember .pname { color: var(--pc, #f39c12); }
+    .s-ember .pscore { background: rgba(243,156,18,0.1); border: 8px solid var(--pc, #f39c12); color: var(--pc, #f39c12); }
+    .s-ember .mid { background: linear-gradient(180deg, color-mix(in srgb, var(--pc, #f39c12) 10%, transparent), transparent); border-left: 4px solid color-mix(in srgb, var(--pc, #f39c12) 20%, transparent); border-right: 4px solid color-mix(in srgb, var(--pc, #f39c12) 20%, transparent); }
+    .s-ember .phase { color: var(--pc2, #e67e22); letter-spacing: 8px; }
+    .s-ember .fmt { background: linear-gradient(135deg, var(--pc, #f39c12), var(--pc2, #e67e22)); color: #1a0a00; font-weight: 700; }
+    .s-ember .tname { color: color-mix(in srgb, var(--pc, #f39c12) 40%, transparent); }
+
+    .s-frost .sb-bg { background: linear-gradient(135deg, #0a1628, #0d2137, #0a1628); }
+    .s-frost .pname { color: var(--pc, #00bcd4); }
+    .s-frost .pscore { background: rgba(0,188,212,0.08); border: 4px solid var(--pc, #00bcd4); color: var(--pc, #00bcd4); }
+    .s-frost .mid { background: linear-gradient(180deg, color-mix(in srgb, var(--pc, #00bcd4) 8%, transparent), transparent); border-left: 4px solid color-mix(in srgb, var(--pc, #00bcd4) 20%, transparent); border-right: 4px solid color-mix(in srgb, var(--pc, #00bcd4) 20%, transparent); }
+    .s-frost .phase { color: var(--pc2, #4dd0e1); letter-spacing: 8px; }
+    .s-frost .fmt { background: var(--pc, #00bcd4); color: #0a1628; font-weight: 700; }
+    .s-frost .tname { color: color-mix(in srgb, var(--pc, #00bcd4) 35%, transparent); }
+
+    .s-vortex .sb-bg { background: linear-gradient(135deg, #0a0020, #150040, #0a0020); }
+    .s-vortex .pname { color: var(--pc, #00e5ff); }
+    .s-vortex .pscore { background: linear-gradient(135deg, color-mix(in srgb, var(--pc, #00e5ff) 15%, transparent), color-mix(in srgb, var(--pc2, #d500f9) 15%, transparent)); border: 4px solid var(--pc2, #d500f9); color: #fff; }
+    .s-vortex .mid { background: linear-gradient(180deg, color-mix(in srgb, var(--pc, #00e5ff) 10%, transparent), color-mix(in srgb, var(--pc2, #d500f9) 5%, transparent)); border-left: 4px solid var(--pc, #00e5ff); border-right: 4px solid var(--pc2, #d500f9); }
+    .s-vortex .phase { color: var(--pc2, #d500f9); letter-spacing: 8px; }
+    .s-vortex .fmt { background: linear-gradient(135deg, var(--pc, #00e5ff), var(--pc2, #d500f9)); color: #fff; }
+    .s-vortex .tname { color: color-mix(in srgb, var(--pc, #00e5ff) 30%, transparent); }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="sb" id="sbOverlay">
+      <div class="sb-shape" id="sbShape">
+        <div class="sb-bg" id="sbBg"></div>
+        <div class="sb-ve" id="sbVe">
+          <div class="deco-left" id="decoL"></div>
+          <div class="deco-right" id="decoR"></div>
+        </div>
+      </div>
+      <div class="sb-content" id="sbContent">
+        <div class="left-container">
+          <span class="pname" id="p1n">Player 1</span>
+          <span class="pflag" id="p1f" style="display:none"></span>
+          <span class="pscore ss-square" id="p1s">0</span>
+        </div>
+        <div class="mid">
+          <img class="logo" id="logoImg" style="display:none" alt="logo">
+          <span class="phase" id="phase"></span>
+          <span class="fmt" id="fmt"></span>
+        </div>
+        <div class="right-container">
+          <span class="pscore ss-square" id="p2s">0</span>
+          <span class="pflag" id="p2f" style="display:none"></span>
+          <span class="pname" id="p2n">Player 2</span>
+        </div>
+      </div>
+      <span class="sponsor" id="sponsor" style="display:none"></span>
+      <span class="tname" id="tname"></span>
+    </div>
+  </div>
+
+  <script>
+    const tid = window.location.pathname.split('/').pop();
+    const fm = {
+      'Impact': "'Impact', sans-serif", 'Arial Black': "'Arial Black', sans-serif",
+      'Orbitron': "'Orbitron', sans-serif", 'Press Start 2P': "'Press Start 2P', cursive",
+      'Bebas Neue': "'Bebas Neue', sans-serif", 'Roboto Condensed': "'Roboto Condensed', sans-serif",
+      'Inter': "'Inter', sans-serif", 'Rajdhani': "'Rajdhani', sans-serif",
+      'Teko': "'Teko', sans-serif", 'Exo 2': "'Exo 2', sans-serif",
+      'Oswald': "'Oswald', sans-serif", 'Barlow Condensed': "'Barlow Condensed', sans-serif",
+      'Russo One': "'Russo One', sans-serif",
+    };
+    const $ = (id) => document.getElementById(id);
+
+    function emojiToFlagUrl(emoji) {
+      if (!emoji) return '';
+      const cps = [];
+      for (const ch of emoji) cps.push(ch.codePointAt(0).toString(16));
+      return 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/' + cps.join('-') + '.png';
+    }
+    function setFlag(container, flagEmoji) {
+      container.innerHTML = '';
+      if (!flagEmoji) { container.style.display = 'none'; return; }
+      const url = emojiToFlagUrl(flagEmoji);
+      if (!url) { container.style.display = 'none'; return; }
+      const img = document.createElement('img');
+      img.className = 'flag'; img.src = url; img.alt = flagEmoji;
+      img.onerror = function() { container.style.display = 'none'; };
+      container.appendChild(img); container.style.display = '';
+    }
+
+    const SHAPES = ['sh-rect','sh-rounded','sh-pill','sh-sloped','sh-diamond','sh-arrow','sh-hex','sh-notch','sh-shield','sh-invert','sh-trapezoid','sh-octagon','sh-angle','sh-crest'];
+    const VES = ['ve-diamond','ve-arrow','ve-viper','ve-phoenix','ve-banner','ve-stripe','ve-frame','ve-glow'];
+
+    function applySettings(s) {
+      if (!s) return;
+      document.body.className = 's-' + (s.style || 'esports-gold');
+      document.body.style.setProperty('--pc', s.pc || '#d4af37');
+      document.body.style.setProperty('--pc2', s.pc2 || '#f5d77a');
+      document.body.style.setProperty('--sb-font', fm[s.font] || fm['Impact']);
+
+      const sbEl = $('sbOverlay');
+      const shapeEl = $('sbShape');
+      const contentEl = $('sbContent');
+
+      SHAPES.forEach(c => { sbEl.classList.remove(c); shapeEl.classList.remove(c); contentEl.classList.remove(c); });
+      const sh = 'sh-' + (s.overlay_shape || 'rect');
+      sbEl.classList.add(sh); shapeEl.classList.add(sh); contentEl.classList.add(sh);
+
+      const ss = 'ss-' + (s.score_shape || 'square');
+      $('p1s').className = 'pscore ' + ss;
+      $('p2s').className = 'pscore ' + ss;
+
+      $('phase').style.display = s.show_phase === 1 ? '' : 'none';
+      $('fmt').style.display = s.show_format === 1 ? '' : 'none';
+      $('tname').style.display = s.show_tournament === 1 ? '' : 'none';
+      $('p1f').style.display = s.show_flags === 1 ? '' : 'none';
+      $('p2f').style.display = s.show_flags === 1 ? '' : 'none';
+      $('sponsor').style.display = (s.show_sponsor === 1 && s.sponsor) ? '' : 'none';
+
+      if (s.logo) { $('logoImg').src = s.logo; }
+      $('logoImg').style.display = (s.show_logo === 1 && s.logo) ? '' : 'none';
+      if (s.sponsor) $('sponsor').textContent = s.sponsor;
+
+      if (s.custom_colors === 1) sbEl.classList.add('custom-colors');
+      else sbEl.classList.remove('custom-colors');
+
+      const ve = s.visual_effect || 'none';
+      VES.forEach(c => sbEl.classList.remove(c));
+      if (ve !== 'none') sbEl.classList.add('ve-' + ve);
+    }
+
+    function applyMatch(d) {
+      if (!d || !d.tournament) return;
+      $('tname').textContent = d.tournament.name || '';
+      const all = [...(d.bracket.winners || []), ...(d.bracket.losers || []), ...(d.bracket.grandFinal || [])];
+      const currentOrder = d.tournament.current_match_order || 0;
+      const m = all.find(x => x.match_order === currentOrder) || all.find(x => x.status === 'in_progress') || [...all].reverse().find(x => x.status === 'completed');
+      if (!m) return;
+      $('p1n').textContent = m.player1?.name || 'TBD';
+      $('p2n').textContent = m.player2?.name || 'TBD';
+      $('p1s').textContent = m.player1_score || 0;
+      $('p2s').textContent = m.player2_score || 0;
+      setFlag($('p1f'), m.player1?.flag);
+      setFlag($('p2f'), m.player2?.flag);
+      $('phase').textContent = m.round_name || '';
+      let phaseKey = '';
+      if (m.bracket_type === 'grand_final') phaseKey = 'grand_final';
+      else if (m.bracket_type === 'losers') {
+        const wbRounds = Math.log2(d.tournament.bracket_size || 8);
+        const lbRounds = 2 * (wbRounds - 1);
+        const lr = lbRounds + 1 - m.round;
+        phaseKey = 'losers_r' + Math.max(1, lr);
+      } else {
+        const wbRounds = Math.log2(d.tournament.bracket_size || 8);
+        if (m.round === wbRounds) phaseKey = 'winners_f';
+        else if (m.round === wbRounds - 1) phaseKey = 'winners_sf';
+        else if (m.round === wbRounds - 2) phaseKey = 'winners_qf';
+        else phaseKey = 'winners_r1';
+      }
+      const fmt = (d.tournament.formats || []).find(x => x.phase === phaseKey);
+      $('fmt').textContent = fmt?.format || d.tournament.tournament_type || 'Bo3';
+    }
+
+    function tick() {
+      Promise.all([
+        fetch('/api/overlay-settings/' + tid),
+        fetch('/api/bracket/' + tid)
+      ]).then(res => Promise.all(res.map(r => r.json())))
+        .then(data => { applySettings(data[0]); applyMatch(data[1]); })
+        .catch(e => console.error('Tick error:', e));
+    }
+    tick();
+    setInterval(tick, 2000);
+  </script>
+</body>
+</html>
