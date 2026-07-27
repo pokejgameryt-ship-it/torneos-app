@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
+import { API_BASE, SOCKET_URL } from '../api';
 
 export default function MatchChat({ matchId, onClose }) {
   const { user, token } = useAuth();
@@ -10,14 +11,14 @@ export default function MatchChat({ matchId, onClose }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    fetch(`/api/matches/${matchId}/chat`, {
+    fetch(`${API_BASE}/matches/${matchId}/chat`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setMessages(data); })
       .catch(() => {});
 
-    const s = io(import.meta.env.VITE_API_URL || window.location.origin, { transports: ['websocket', 'polling'] });
+    const s = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     s.emit('join:match', matchId);
     s.on('chat:message', (msg) => {
       setMessages(prev => [...prev, msg]);
@@ -36,7 +37,7 @@ export default function MatchChat({ matchId, onClose }) {
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-    const res = await fetch(`/api/matches/${matchId}/chat`, {
+    const res = await fetch(`${API_BASE}/matches/${matchId}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ content: input.trim() })

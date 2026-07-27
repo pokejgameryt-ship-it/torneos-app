@@ -6,7 +6,7 @@ import {
   removeParticipant, generateBracket, randomizeParticipants,
   setMatchResult, undoMatchResult, incrementScore,
   getOverlaySettings, saveOverlaySettings, resetOverlaySettings,
-  updateParticipant, nextMatch
+  updateParticipant, nextMatch, SOCKET_URL
 } from '../api'
 import { useAuth } from '../context/AuthContext'
 import MatchChat from '../components/MatchChat'
@@ -35,7 +35,7 @@ function Tournament() {
   useEffect(() => {
     loadData()
 
-    socketRef.current = io(import.meta.env.VITE_API_URL || window.location.origin)
+    socketRef.current = io(SOCKET_URL)
     socketRef.current.emit('join:tournament', id)
 
     socketRef.current.on('match:updated', () => {

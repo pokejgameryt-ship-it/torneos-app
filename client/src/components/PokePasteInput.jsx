@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE } from '../api';
 
 export default function PokePasteInput({ matchId, currentUrl, onUpdate }) {
   const { token } = useAuth();
@@ -12,7 +13,7 @@ export default function PokePasteInput({ matchId, currentUrl, onUpdate }) {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`/api/matches/${matchId}/team-paste`, {
+      const res = await fetch(`${API_BASE}/matches/${matchId}/team-paste`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ url: url.trim() })

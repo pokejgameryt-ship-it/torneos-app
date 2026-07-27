@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { io } from 'socket.io-client'
-import { fetchBracket, fetchTournament } from '../api'
+import { fetchBracket, fetchTournament, SOCKET_URL } from '../api'
 
 function PublicTournament() {
   const { id } = useParams()
@@ -60,7 +60,7 @@ function PublicTournament() {
 
   useEffect(() => {
     if (authenticated) {
-      socketRef.current = io(import.meta.env.VITE_API_URL || window.location.origin)
+      socketRef.current = io(SOCKET_URL)
       socketRef.current.emit('join:tournament', id)
       socketRef.current.on('match:updated', () => { loadBracket() })
       return () => {

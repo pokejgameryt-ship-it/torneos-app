@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { io } from 'socket.io-client'
-import { getRegisterInfo, registerParticipant, fetchBracket } from '../api'
+import { getRegisterInfo, registerParticipant, fetchBracket, SOCKET_URL } from '../api'
 
 const FLAGS = ['🏳️','🇪🇸','🇲🇽','🇦🇷','🇧🇷','🇺🇸','🇯🇵','🇰🇷','🇫🇷','🇩🇪','🇬🇧','🇮🇹','🇵🇹','🇨🇳','🇷🇺','🇦🇺','🇨🇦','🇳🇱','🇸🇪','🇨🇭','🇵🇱','🇹🇷','🇮🇳','🇹🇭','🇻🇳','🇮🇩','🇵🇭','🇲🇾','🇸🇬','🇳🇬','🇬🇭','🇿🇦','🇪🇬','🇲🇦','🇨🇴','🇨🇱','🇵🇪','🇪🇨','🇻🇪','🇩🇴','🇵🇷','🇨🇺','🇭🇳','🇬🇹','🇸🇻','🇳🇮','🇨🇷','🇵🇦']
 
@@ -28,7 +28,7 @@ function RegisterPage() {
   }, [info])
 
   useEffect(() => {
-    socketRef.current = io(import.meta.env.VITE_API_URL || window.location.origin)
+    socketRef.current = io(SOCKET_URL)
     socketRef.current.emit('join:tournament', id)
     socketRef.current.on('match:updated', () => { loadBracket() })
     socketRef.current.on('participant:added', () => { loadData() })

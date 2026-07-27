@@ -1,8 +1,8 @@
-const API_BASE = import.meta.env.VITE_API_URL
+export const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
   : '/api';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || window.location.origin;
+export const SOCKET_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
 function authHeaders(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};

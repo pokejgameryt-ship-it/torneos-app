@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { API_BASE } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -9,7 +10,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (token) {
-      fetch('/api/auth/me', {
+      fetch(`${API_BASE}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(r => r.ok ? r.json() : Promise.reject())
@@ -22,7 +23,7 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   const login = async (loginStr, password) => {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ login: loginStr, password })
@@ -36,7 +37,7 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (email, nickname, password) => {
-    const res = await fetch('/api/auth/register', {
+    const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, nickname, password })

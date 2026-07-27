@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE } from '../api';
 
 const STAGE_IMAGES = {
   'battlefield': '/stages/battlefield.png',
@@ -19,7 +20,7 @@ export default function StagePicker({ matchId, allowGentleman, onUpdate }) {
   const [loading, setLoading] = useState(true);
 
   const load = () => {
-    fetch(`/api/matches/${matchId}/stage-pick`, {
+    fetch(`${API_BASE}/matches/${matchId}/stage-pick`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())
@@ -33,7 +34,7 @@ export default function StagePicker({ matchId, allowGentleman, onUpdate }) {
   const isGentleman = data?.mode === 'gentleman' || bothAgreed;
 
   const handleGentleman = async (agreed) => {
-    await fetch(`/api/matches/${matchId}/stage-pick/gentleman`, {
+    await fetch(`${API_BASE}/matches/${matchId}/stage-pick/gentleman`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ agreed })
@@ -43,7 +44,7 @@ export default function StagePicker({ matchId, allowGentleman, onUpdate }) {
   };
 
   const handleStagePick = async (stageId) => {
-    await fetch(`/api/matches/${matchId}/stage-pick`, {
+    await fetch(`${API_BASE}/matches/${matchId}/stage-pick`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ stageId, action: 'pick' })
