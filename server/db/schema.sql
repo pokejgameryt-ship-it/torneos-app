@@ -154,6 +154,14 @@ CREATE TABLE IF NOT EXISTS match_rps (
   FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS match_step (
+  match_id TEXT NOT NULL,
+  game_number INTEGER NOT NULL DEFAULT 1,
+  step TEXT NOT NULL DEFAULT 'rps',
+  PRIMARY KEY (match_id, game_number),
+  FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS direct_messages (
   id TEXT PRIMARY KEY,
   sender_id TEXT NOT NULL,

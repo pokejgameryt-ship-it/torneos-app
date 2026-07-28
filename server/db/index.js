@@ -128,6 +128,16 @@ function getDb() {
       )
     `);
 
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS match_step (
+        match_id TEXT NOT NULL,
+        game_number INTEGER NOT NULL DEFAULT 1,
+        step TEXT NOT NULL DEFAULT 'rps',
+        PRIMARY KEY (match_id, game_number),
+        FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+      )
+    `);
+
     if (!ucols.includes('display_name')) {
       db.exec("ALTER TABLE users ADD COLUMN display_name TEXT DEFAULT ''");
     }

@@ -54,11 +54,20 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
       if (data.matchId === matchData.id && data.game === gameNumber) {
         refreshRps();
         if (data.winner && data.winner !== 0) {
-          setTimeout(() => setStep('character'), 1500);
+          setTimeout(() => syncStep('character'), 1500);
         }
       }
     });
+    socketRef.current.on('step:updated', (data) => {
+      if (data.matchId === matchData.id && data.game === gameNumber) {
+        setStep(data.step);
+      }
+    });
     return () => { socketRef.current?.disconnect(); };
+  }, [matchData.id, gameNumber]);
+
+  useEffect(() => {
+    refreshStep();
   }, [matchData.id, gameNumber]);
 
   useEffect(() => {
@@ -72,6 +81,31 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
       const res = await fetch(`${API_BASE}/matches/${matchData.id}`);
       const data = await res.json();
       setMatchData(data);
+      if (data.current_step) setStep(data.current_step);
+    } catch {}
+  }
+
+  async function refreshStep() {
+    try {
+      const res = await fetch(`${API_BASE}/matches/${matchData.id}/step?game=${gameNumber}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.error) return;
+      if (data.step) setStep(data.step);
+    } catch {}
+  }
+
+  async function syncStep(newStep, opts = {}) {
+    const { force = false } = opts;
+    setStep(newStep);
+    if (!isParticipant) return;
+    try {
+      await fetch(`${API_BASE}/matches/${matchData.id}/step`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ step: newStep, game: gameNumber })
+      });
     } catch {}
   }
 
@@ -84,7 +118,7 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
       if (data.error) return;
       setRpsState(data);
       if (data.winner && data.winner !== 0 && step === 'rps') {
-        setTimeout(() => setStep('character'), 1500);
+        setTimeout(() => syncStep('character'), 1500);
       }
       if (data.winner === 0 && data.player1_choice && data.player2_choice) {
         setTimeout(() => {
@@ -154,7 +188,8 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
     });
     setRpsPendingChoice(null);
     resetStages();
-    setStep(tournament.game_type === 'smash' ? 'rps' : tournament.game_type === 'pokemon' ? 'pokepaste' : 'play');
+    const initialStep = tournament.game_type === 'smash' ? 'rps' : tournament.game_type === 'pokemon' ? 'pokepaste' : 'play';
+    syncStep(initialStep);
   }
 
   async function handleVote(winnerPlayerNum) {
@@ -169,7 +204,7 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
       if (data.error) { alert(data.error); setLoading(false); return; }
       if (data.agreed) {
         setMatchResult({ winner: winnerPlayerNum, winnerName: winnerPlayerNum === 1 ? matchData.player1?.name : matchData.player2?.name });
-        setStep('game-over');
+        syncStep('game-over');
       } else {
         if (myPlayerNum === 1) setP1Vote(winnerPlayerNum);
         else setP2Vote(winnerPlayerNum);
@@ -338,7 +373,7 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
               </div>
 
               {matchData.character1 && matchData.character2 && (
-                <button onClick={() => { resetStages(); setStep('stage'); }}
+                <button onClick={() => { resetStages(); syncStep('stage'); }}
                   className="w-full btn-primary py-3 font-bold">
                   Continuar a escenario →
                 </button>
@@ -361,7 +396,7 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
 
               <StagePicker key={stagePickerKey} matchId={matchData.id} allowGentleman={false} onUpdate={refreshMatch} />
 
-              <button onClick={() => setStep('play')}
+              <button onClick={() => syncStep('play')}
                 className="w-full btn-primary py-3 font-bold">
                 Escenario listo, ¡a jugar! →
               </button>
@@ -376,7 +411,7 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
                 </span>
               </div>
               <PokePasteInput matchId={matchData.id} currentUrl={matchData.team_paste_url} onUpdate={refreshMatch} />
-              <button onClick={() => setStep('play')} className="w-full btn-primary py-3 font-bold">
+              <button onClick={() => syncStep('play')} className="w-full btn-primary py-3 font-bold">
                 Equipo listo, ¡a jugar! →
               </button>
             </div>
@@ -401,7 +436,7 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
                 <p className="text-gray-400 text-xs">Jueguen la partida fuera de la web</p>
               </div>
 
-              <button onClick={() => setStep('report')}
+              <button onClick={() => syncStep('report')}
                 className="w-full bg-green-600 hover:bg-green-500 text-white py-3 font-bold rounded-lg transition">
                 Reportar Resultado →
               </button>
@@ -449,7 +484,7 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
                 <p className="text-center text-yellow-400 text-xs">⏳ Esperando que el rival reporte el mismo resultado...</p>
               )}
 
-              <button onClick={() => setStep('play')} className="w-full text-gray-400 hover:text-white text-sm py-2">
+              <button onClick={() => syncStep('play')} className="w-full text-gray-400 hover:text-white text-sm py-2">
                 ← Volver a jugar
               </button>
             </div>

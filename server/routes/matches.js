@@ -13,7 +13,13 @@ router.get('/:id', (req, res) => {
   if (!match) return res.status(404).json({ error: 'Partido no encontrado' });
   const p1 = match.player1_id ? db.prepare('SELECT * FROM participants WHERE id = ?').get(match.player1_id) : null;
   const p2 = match.player2_id ? db.prepare('SELECT * FROM participants WHERE id = ?').get(match.player2_id) : null;
-  res.json({ ...match, player1: p1, player2: p2 });
+  const stepRow = db.prepare('SELECT step FROM match_step WHERE match_id = ? AND game_number = ?').get(req.params.id, ((match.player1_score || 0) + (match.player2_score || 0) + 1));
+  res.json({
+    ...match,
+    player1: p1,
+    player2: p2,
+    current_step: stepRow?.step || null
+  });
 });
 
 router.put('/:id/character', authRequired, (req, res) => {
@@ -508,13 +514,10 @@ router.get('/:id/stage-pick', (req, res) => {
   if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
 
   const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(match.tournament_id);
-  const { getStageState, getAvailableStages, getCurrentPhase, STAGES } = require('../logic/stage-pick');
+  const { getStageState, getAvailableStages, getCurrentPhase, initMatchStageMode, STAGES } = require('../logic/stage-pick');
 
+  initMatchStageMode(db, req.params.id, 'dsr');
   const { mode, picks } = getStageState(db, req.params.id);
-  if (!mode) {
-    return res.json({ stages: STAGES, picks, mode: null, available: STAGES.map(s => s.id), currentPhase: null });
-  }
-
   const available = getAvailableStages(picks, mode.mode);
   const currentPhase = getCurrentPhase(picks, match, mode.mode);
 
@@ -685,6 +688,52 @@ router.post('/:id/rps', authRequired, (req, res) => {
     my_confirmed: true,
     my_player_num: playerNum
   });
+});
+
+router.get('/:id/step', authRequired, (req, res) => {
+  const db = getDb();
+  const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
+  if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
+  if (!isMatchParticipant(req.params.id, req.user.id) && !isTournamentCreator(match.tournament_id, req.user.id)) {
+    return res.status(403).json({ error: 'No tienes acceso' });
+  }
+
+  const gameNumber = parseInt(req.query.game) || 1;
+  const row = db.prepare('SELECT step FROM match_step WHERE match_id = ? AND game_number = ?').get(req.params.id, gameNumber);
+
+  res.json({
+    step: row?.step || 'rps',
+    game_number: gameNumber,
+    match_status: match.status
+  });
+});
+
+router.put('/:id/step', authRequired, (req, res) => {
+  const { step, game } = req.body;
+  const validSteps = ['rps', 'character', 'stage', 'pokepaste', 'play', 'report', 'game-over'];
+  if (!validSteps.includes(step)) return res.status(400).json({ error: 'Step inválido' });
+
+  const db = getDb();
+  const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
+  if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
+  if (!isMatchParticipant(req.params.id, req.user.id) && !isTournamentCreator(match.tournament_id, req.user.id)) {
+    return res.status(403).json({ error: 'No tienes acceso' });
+  }
+
+  const gameNumber = parseInt(game) || 1;
+  const existing = db.prepare('SELECT * FROM match_step WHERE match_id = ? AND game_number = ?').get(req.params.id, gameNumber);
+  if (existing) {
+    db.prepare('UPDATE match_step SET step = ? WHERE match_id = ? AND game_number = ?').run(step, req.params.id, gameNumber);
+  } else {
+    db.prepare('INSERT INTO match_step (match_id, game_number, step) VALUES (?, ?, ?)').run(req.params.id, gameNumber, step);
+  }
+
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`match:${req.params.id}`).emit('step:updated', { matchId: req.params.id, game: gameNumber, step });
+  }
+
+  res.json({ success: true, step, game: gameNumber });
 });
 
 module.exports = router;
