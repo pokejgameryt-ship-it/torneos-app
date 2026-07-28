@@ -42,7 +42,7 @@ function Dashboard() {
 
   async function handleDelete(id) {
     if (confirm('¿Estás seguro de que quieres eliminar este torneo?')) {
-      await deleteTournament(id)
+      await deleteTournament(id, token)
       loadTournaments()
     }
   }

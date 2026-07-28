@@ -38,8 +38,8 @@ export async function updateTournament(id, data) {
   return res.json();
 }
 
-export async function deleteTournament(id) {
-  const res = await fetch(`${API_BASE}/tournaments/${id}`, { method: 'DELETE' });
+export async function deleteTournament(id, token) {
+  const res = await fetch(`${API_BASE}/tournaments/${id}`, { method: 'DELETE', headers: authHeaders(token) });
   return res.json();
 }
 
