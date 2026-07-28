@@ -10,6 +10,8 @@ const STAGES = [
   { id: 'yoshi-s-story', name: "Yoshi's Story" },
 ];
 
+const STARTER_STAGES = ['battlefield', 'final-destination', 'small-battlefield', 'smashville', 'town-and-city', 'pokemon-stadium-2'];
+
 function getStageState(db, matchId) {
   const mode = db.prepare('SELECT * FROM match_stage_mode WHERE match_id = ?').get(matchId);
   const picks = db.prepare('SELECT * FROM stage_picks WHERE match_id = ? ORDER BY created_at ASC').all(matchId);
@@ -17,11 +19,7 @@ function getStageState(db, matchId) {
 }
 
 function getAvailableStages(picks, mode) {
-  let banned = picks.filter(p => p.action === 'ban').map(p => p.stage);
-  if (mode === 'dsr') {
-    const wonStages = picks.filter(p => p.action === 'pick').map(p => p.stage);
-    banned = [...new Set([...banned, ...wonStages])];
-  }
+  const banned = picks.filter(p => p.action === 'ban').map(p => p.stage);
   return STAGES.filter(s => !banned.includes(s.id));
 }
 
@@ -33,18 +31,18 @@ function getLoserId(match) {
 function getCurrentPhase(picks, match, mode) {
   if (mode === 'gentleman') return { phase: 'gentleman', currentTurn: null };
 
-  const phaseCount = { initial_ban: 0, initial_pick: 0, counterpick_ban: 0, counterpick_pick: 0 };
-  picks.forEach(p => phaseCount[p.phase] = (phaseCount[p.phase] || 0) + 1);
+  const banCount = picks.filter(p => p.action === 'ban').length;
+  const pickCount = picks.filter(p => p.action === 'pick').length;
+  const totalActions = banCount + pickCount;
 
-  const totalInitial = phaseCount.initial_ban + phaseCount.initial_pick;
-  if (totalInitial < 3) {
-    if (totalInitial === 0) return { phase: 'initial_ban', currentTurn: match.player1_id, banNumber: 1 };
-    if (totalInitial === 1) return { phase: 'initial_ban', currentTurn: match.player2_id, banNumber: 2 };
+  if (totalActions < 3) {
+    if (totalActions === 0) return { phase: 'initial_ban', currentTurn: match.player1_id, banNumber: 1 };
+    if (totalActions === 1) return { phase: 'initial_ban', currentTurn: match.player2_id, banNumber: 2 };
     return { phase: 'initial_pick', currentTurn: match.player2_id };
   }
 
   const loserId = getLoserId(match);
-  if (phaseCount.counterpick_ban <= phaseCount.counterpick_pick) {
+  if (banCount <= pickCount) {
     return { phase: 'counterpick_ban', currentTurn: match.winner_id };
   }
   return { phase: 'counterpick_pick', currentTurn: loserId || match.player1_id };
@@ -55,6 +53,11 @@ function initMatchStageMode(db, matchId, mode) {
   if (!existing) {
     db.prepare('INSERT INTO match_stage_mode (match_id, mode) VALUES (?, ?)').run(matchId, mode);
   }
+}
+
+function resetStagePicks(db, matchId) {
+  db.prepare('DELETE FROM stage_picks WHERE match_id = ?').run(matchId);
+  db.prepare('DELETE FROM match_stage_mode WHERE match_id = ?').run(matchId);
 }
 
 function setGentleman(db, matchId, userId, agreed) {
@@ -108,4 +111,4 @@ function performStageAction(db, matchId, userId, stageId, action) {
   return db.prepare('SELECT * FROM stage_picks WHERE match_id = ? ORDER BY created_at ASC').all(matchId);
 }
 
-module.exports = { STAGES, getStageState, getAvailableStages, getCurrentPhase, initMatchStageMode, setGentleman, performStageAction };
+module.exports = { STAGES, STARTER_STAGES, getStageState, getAvailableStages, getCurrentPhase, initMatchStageMode, resetStagePicks, setGentleman, performStageAction };

@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDb } = require('../db');
 const { advanceWinner } = require('../logic/bracket');
+const { resetStagePicks } = require('../logic/stage-pick');
 const { authRequired } = require('../middleware/auth');
 
 const router = express.Router();
@@ -170,6 +171,132 @@ router.put('/:id/undo', (req, res) => {
   }
 
   res.json({ success: true });
+});
+
+const matchVotes = {};
+
+router.post('/:id/vote', authRequired, (req, res) => {
+  const { winner } = req.body;
+  if (!winner || winner !== 1 && winner !== 2) return res.status(400).json({ error: 'winner inválido' });
+
+  const db = getDb();
+  const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
+  if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
+  if (match.status === 'completed') return res.status(400).json({ error: 'Partida ya finalizada' });
+  if (match.player1_id !== req.user.id && match.player2_id !== req.user.id) {
+    return res.status(403).json({ error: 'No eres participante' });
+  }
+
+  const matchId = req.params.id;
+  if (!matchVotes[matchId]) matchVotes[matchId] = {};
+
+  const playerNum = match.player1_id === req.user.id ? 1 : 2;
+  matchVotes[matchId][playerNum] = winner;
+
+  const vote1 = matchVotes[matchId][1];
+  const vote2 = matchVotes[matchId][2];
+
+  if (vote1 && vote2) {
+    if (vote1 === vote2) {
+      const winnerPlayerNum = vote1;
+      const winnerId = winnerPlayerNum === 1 ? match.player1_id : match.player2_id;
+
+      const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(match.tournament_id);
+      const formats = db.prepare('SELECT * FROM tournament_formats WHERE tournament_id = ?').all(match.tournament_id);
+
+      let phaseKey = '';
+      if (match.bracket_type === 'winners') {
+        const wbRounds = Math.log2(tournament.bracket_size);
+        if (match.round === wbRounds) phaseKey = 'winners_f';
+        else if (match.round === wbRounds - 1) phaseKey = 'winners_sf';
+        else if (match.round === wbRounds - 2) phaseKey = 'winners_qf';
+        else phaseKey = 'winners_r1';
+      } else if (match.bracket_type === 'losers') {
+        phaseKey = 'losers_r1';
+      } else if (match.bracket_type === 'grand_final') {
+        phaseKey = 'grand_final';
+      }
+      const formatEntry = formats.find(f => f.phase === phaseKey);
+      const format = formatEntry ? formatEntry.format : 'Bo3';
+      let winsNeeded = format === 'Bo1' ? 1 : format === 'Bo5' ? 3 : 2;
+
+      let newP1 = (match.player1_score || 0) + (winnerPlayerNum === 1 ? 1 : 0);
+      let newP2 = (match.player2_score || 0) + (winnerPlayerNum === 2 ? 1 : 0);
+      let isFinished = newP1 >= winsNeeded || newP2 >= winsNeeded;
+
+      if (isFinished) {
+        db.prepare('UPDATE matches SET winner_id = ?, player1_score = ?, player2_score = ?, status = ? WHERE id = ?')
+          .run(winnerId, newP1, newP2, 'completed', matchId);
+
+        const allMatches = db.prepare('SELECT * FROM matches WHERE tournament_id = ?').all(match.tournament_id);
+        advanceWinner(allMatches, matchId, winnerId);
+
+        const nextMatch = allMatches.find(m => m.id === match.next_match_id);
+        if (nextMatch) {
+          db.prepare('UPDATE matches SET player1_id = ?, player2_id = ?, status = CASE WHEN player1_id IS NOT NULL AND player2_id IS NOT NULL THEN ? ELSE status END WHERE id = ?')
+            .run(nextMatch.player1_id, nextMatch.player2_id, 'in_progress', nextMatch.id);
+        }
+
+        if (match.bracket_type === 'winners' && tournament.elimination_type === 'double') {
+          const wbRounds = Math.log2(tournament.bracket_size);
+          if (match.round < wbRounds) {
+            const loserId = winnerId === match.player1_id ? match.player2_id : match.player1_id;
+            if (loserId) {
+              let lbRound, lbPosition;
+              if (match.round === 1) {
+                lbRound = 1;
+                lbPosition = Math.ceil(match.position / 2);
+              } else {
+                lbRound = 2 * (match.round - 1);
+                lbPosition = match.position;
+              }
+              const lbMatch = allMatches.find(m => m.bracket_type === 'losers' && m.round === lbRound && m.position === lbPosition);
+              if (lbMatch) {
+                if (!lbMatch.player1_id) {
+                  db.prepare('UPDATE matches SET player1_id = ?, status = CASE WHEN player2_id IS NOT NULL THEN ? ELSE status END WHERE id = ?')
+                    .run(loserId, 'in_progress', lbMatch.id);
+                } else {
+                  db.prepare('UPDATE matches SET player2_id = ?, status = ? WHERE id = ?')
+                    .run(loserId, 'in_progress', lbMatch.id);
+                }
+              }
+            }
+          }
+        }
+
+        if (match.bracket_type === 'grand_final' && tournament.elimination_type === 'double') {
+          const wbFinal = allMatches.find(m => m.bracket_type === 'winners' && m.round === Math.log2(tournament.bracket_size));
+          const isWBChampion = wbFinal && wbFinal.winner_id === winnerId;
+
+          if (!isWBChampion && !match.is_reset) {
+            db.prepare(`INSERT INTO matches (id, tournament_id, bracket_type, round, position, player1_id, player2_id, player1_score, player2_score, winner_id, status, next_match_id, next_slot, is_reset) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+              .run(require('uuid').v4(), match.tournament_id, 'grand_final', 2, 1, wbFinal ? wbFinal.winner_id : match.player1_id, winnerId, 0, 0, null, 'in_progress', null, null, 1);
+          }
+
+          if ((match.is_reset || isWBChampion) && match.status !== 'completed') {
+            db.prepare("UPDATE tournaments SET status = 'completed' WHERE id = ?").run(match.tournament_id);
+            db.prepare('DELETE FROM chat_messages WHERE match_id IN (SELECT id FROM matches WHERE tournament_id = ?)').run(match.tournament_id);
+          }
+        }
+
+        resetStagePicks(db, matchId);
+      } else {
+        db.prepare('UPDATE matches SET player1_score = ?, player2_score = ? WHERE id = ?').run(newP1, newP2, matchId);
+        resetStagePicks(db, matchId);
+      }
+
+      const io = req.app.get('io');
+      if (io) io.to(`tournament:${match.tournament_id}`).emit('match:updated', { tournamentId: match.tournament_id, matchId });
+
+      delete matchVotes[matchId];
+      return res.json({ success: true, agreed: true, finished: isFinished, winner_id: winnerId, player1_score: newP1, player2_score: newP2 });
+    } else {
+      matchVotes[matchId] = {};
+      return res.json({ success: true, agreed: false, error: 'Los jugadores reportaron distintos resultados. Vuelvan a intentar.' });
+    }
+  }
+
+  res.json({ success: true, agreed: false });
 });
 
 router.put('/:id/score', (req, res) => {
@@ -366,6 +493,18 @@ router.get('/:id/stage-pick', (req, res) => {
     available: available.map(s => s.id),
     currentPhase
   });
+});
+
+router.post('/:id/stage-pick/reset', authRequired, (req, res) => {
+  const db = getDb();
+  const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
+  if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
+  if (match.player1_id !== req.user.id && match.player2_id !== req.user.id) {
+    return res.status(403).json({ error: 'No eres participante' });
+  }
+  const { resetStagePicks } = require('../logic/stage-pick');
+  resetStagePicks(db, req.params.id);
+  res.json({ success: true });
 });
 
 router.post('/:id/stage-pick', authRequired, (req, res) => {
