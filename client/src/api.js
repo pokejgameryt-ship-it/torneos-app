@@ -137,10 +137,10 @@ export async function getRegisterInfo(tournamentId) {
   return res.json();
 }
 
-export async function registerParticipant(tournamentId, name, flag) {
+export async function registerParticipant(tournamentId, name, flag, token) {
   const res = await fetch(`${API_BASE}/tournaments/${tournamentId}/register`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify({ name, flag })
   });
   return res.json();

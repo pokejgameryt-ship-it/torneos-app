@@ -41,15 +41,27 @@ router.get('/:id', (req, res) => {
 
 router.post('/', (req, res) => {
   const db = getDb();
-  const { name, game, tournament_type, elimination_type, bracket_size, is_public, password, formats, sequential_matches, creator_id, game_type, open_team_sheets, format_mode, allow_gentleman, requirements } = req.body;
+  const { name, game, tournament_type, elimination_type, bracket_size, is_public, password, formats, sequential_matches, game_type, open_team_sheets, format_mode, allow_gentleman, requirements, description, banner, start_date, start_time, timezone } = req.body;
+
+  let creator_id = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const { JWT_SECRET } = require('../middleware/auth');
+      const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      creator_id = decoded.id;
+    } catch {}
+  }
+  if (!creator_id) return res.status(401).json({ error: 'Debes iniciar sesión para crear un torneo' });
 
   const id = uuidv4();
   const bracketSize = bracket_size || 8;
 
   db.prepare(`
-    INSERT INTO tournaments (id, name, game, tournament_type, elimination_type, bracket_size, is_public, password, sequential_matches, creator_id, game_type, open_team_sheets, format_mode, allow_gentleman, requirements)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, name, game || '', tournament_type || '1v1', elimination_type || 'single', bracketSize, is_public !== false ? 1 : 0, password || null, sequential_matches ? 1 : 0, creator_id || null, game_type || 'other', open_team_sheets ? 1 : 0, format_mode || 'singles', allow_gentleman !== false ? 1 : 0, JSON.stringify(requirements || []));
+    INSERT INTO tournaments (id, name, game, tournament_type, elimination_type, bracket_size, is_public, password, sequential_matches, creator_id, game_type, open_team_sheets, format_mode, allow_gentleman, requirements, description, banner, start_date, start_time, timezone)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, name, game || '', tournament_type || '1v1', elimination_type || 'single', bracketSize, is_public !== false ? 1 : 0, password || null, sequential_matches ? 1 : 0, creator_id || null, game_type || 'other', open_team_sheets ? 1 : 0, format_mode || 'singles', allow_gentleman !== false ? 1 : 0, JSON.stringify(requirements || []), description || '', banner || '', start_date || '', start_time || '', timezone || 'UTC');
 
   if (formats && Array.isArray(formats)) {
     const insertFormat = db.prepare('INSERT INTO tournament_formats (id, tournament_id, phase, format) VALUES (?, ?, ?, ?)');
@@ -64,14 +76,28 @@ router.post('/', (req, res) => {
 
 router.put('/:id', (req, res) => {
   const db = getDb();
-  const { name, game, tournament_type, elimination_type, bracket_size, is_public, password, status } = req.body;
+  const { name, game, tournament_type, elimination_type, bracket_size, is_public, password, status, description, banner, start_date, start_time, timezone } = req.body;
 
   const existing = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Torneo no encontrado' });
 
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const { JWT_SECRET } = require('../middleware/auth');
+      const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      if (existing.creator_id && existing.creator_id !== decoded.id) {
+        return res.status(403).json({ error: 'Solo el creador puede editar este torneo' });
+      }
+    } catch {}
+  } else if (existing.creator_id) {
+    return res.status(403).json({ error: 'Debes estar logueado para editar' });
+  }
+
   db.prepare(`
     UPDATE tournaments
-    SET name = ?, game = ?, tournament_type = ?, elimination_type = ?, bracket_size = ?, is_public = ?, password = ?, status = ?
+    SET name = ?, game = ?, tournament_type = ?, elimination_type = ?, bracket_size = ?, is_public = ?, password = ?, status = ?, description = ?, banner = ?, start_date = ?, start_time = ?, timezone = ?
     WHERE id = ?
   `).run(
     name || existing.name,
@@ -82,6 +108,11 @@ router.put('/:id', (req, res) => {
     is_public !== undefined ? (is_public ? 1 : 0) : existing.is_public,
     password !== undefined ? password : existing.password,
     status || existing.status,
+    description !== undefined ? description : existing.description,
+    banner !== undefined ? banner : existing.banner,
+    start_date !== undefined ? start_date : existing.start_date,
+    start_time !== undefined ? start_time : existing.start_time,
+    timezone || existing.timezone,
     req.params.id
   );
 
@@ -93,6 +124,20 @@ router.delete('/:id', (req, res) => {
   const db = getDb();
   const existing = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Torneo no encontrado' });
+
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const { JWT_SECRET } = require('../middleware/auth');
+      const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      if (existing.creator_id && existing.creator_id !== decoded.id) {
+        return res.status(403).json({ error: 'Solo el creador puede eliminar este torneo' });
+      }
+    } catch {}
+  } else if (existing.creator_id) {
+    return res.status(403).json({ error: 'Debes estar logueado para eliminar' });
+  }
 
   db.prepare('DELETE FROM tournaments WHERE id = ?').run(req.params.id);
   res.json({ success: true });

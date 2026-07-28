@@ -143,6 +143,21 @@ function getDb() {
     if (!tcols.includes('requirements')) {
       db.exec("ALTER TABLE tournaments ADD COLUMN requirements TEXT DEFAULT '[]'");
     }
+    if (!tcols.includes('description')) {
+      db.exec("ALTER TABLE tournaments ADD COLUMN description TEXT DEFAULT ''");
+    }
+    if (!tcols.includes('banner')) {
+      db.exec("ALTER TABLE tournaments ADD COLUMN banner TEXT DEFAULT ''");
+    }
+    if (!tcols.includes('start_date')) {
+      db.exec("ALTER TABLE tournaments ADD COLUMN start_date TEXT DEFAULT ''");
+    }
+    if (!tcols.includes('start_time')) {
+      db.exec("ALTER TABLE tournaments ADD COLUMN start_time TEXT DEFAULT ''");
+    }
+    if (!tcols.includes('timezone')) {
+      db.exec("ALTER TABLE tournaments ADD COLUMN timezone TEXT DEFAULT 'UTC'");
+    }
 
     if (!mcols.includes('character1')) {
       db.exec("ALTER TABLE matches ADD COLUMN character1 TEXT DEFAULT ''");

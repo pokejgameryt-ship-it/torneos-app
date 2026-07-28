@@ -32,6 +32,11 @@ CREATE TABLE IF NOT EXISTS tournaments (
   format_mode TEXT DEFAULT 'singles',
   allow_gentleman INTEGER DEFAULT 1,
   requirements TEXT DEFAULT '[]',
+  description TEXT DEFAULT '',
+  banner TEXT DEFAULT '',
+  start_date TEXT DEFAULT '',
+  start_time TEXT DEFAULT '',
+  timezone TEXT DEFAULT 'UTC',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (creator_id) REFERENCES users(id)
 );
