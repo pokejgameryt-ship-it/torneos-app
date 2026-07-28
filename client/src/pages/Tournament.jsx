@@ -6,7 +6,7 @@ import {
   removeParticipant, generateBracket, randomizeParticipants,
   setMatchResult, undoMatchResult, incrementScore,
   getOverlaySettings, saveOverlaySettings, resetOverlaySettings,
-  updateParticipant, nextMatch, SOCKET_URL, API_BASE, API_ORIGIN
+  updateParticipant, nextMatch, SOCKET_URL, API_BASE, API_ORIGIN, searchUsers
 } from '../api'
 import { useAuth } from '../context/AuthContext'
 import MatchChat from '../components/MatchChat'
@@ -22,17 +22,16 @@ function Tournament() {
   const [bracket, setBracket] = useState(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('participants')
-  const [newName, setNewName] = useState('')
-  const [newFlag, setNewFlag] = useState('')
-  const [showNewFlagPicker, setShowNewFlagPicker] = useState(false)
-  const [bulkNames, setBulkNames] = useState('')
-  const [showBulkInput, setShowBulkInput] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState(null)
   const [showScoreModal, setShowScoreModal] = useState(false)
   const [p1Score, setP1Score] = useState(0)
   const [p2Score, setP2Score] = useState(0)
   const [chatMatchId, setChatMatchId] = useState(null)
   const [matchRoomMatch, setMatchRoomMatch] = useState(null)
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [userSearchResults, setUserSearchResults] = useState([])
+  const [showUserSearch, setShowUserSearch] = useState(false)
+  const [searchTimeout, setSearchTimeout] = useState(null)
   const socketRef = useRef(null)
 
   useEffect(() => {
@@ -69,28 +68,29 @@ function Tournament() {
     setBracket(data)
   }
 
-  async function handleAddParticipant() {
-    if (!newName.trim()) return
-    await addParticipant(id, newName.trim(), newFlag)
-    setNewName('')
-    setNewFlag('')
+  async function handleAddParticipant(userId) {
+    if (!userId) return
+    const res = await addParticipant(id, userId, token)
+    if (res.error) { alert(res.error); return }
+    setUserSearchQuery('')
+    setUserSearchResults([])
+    setShowUserSearch(false)
     loadData()
   }
 
+  function handleUserSearch(query) {
+    setUserSearchQuery(query)
+    if (searchTimeout) clearTimeout(searchTimeout)
+    if (!query.trim()) { setUserSearchResults([]); return }
+    const timeout = setTimeout(async () => {
+      const results = await searchUsers(query)
+      const existingIds = tournament.participants?.map(p => p.user_id).filter(Boolean) || []
+      setUserSearchResults(results.filter(u => !existingIds.includes(u.id)))
+    }, 300)
+    setSearchTimeout(timeout)
+  }
+
   async function handleBulkAdd() {
-    const lines = bulkNames.split('\n').map(n => n.trim()).filter(n => n)
-    if (lines.length === 0) return
-    const items = lines.map(line => {
-      const parts = line.split('|').map(p => p.trim())
-      if (parts.length >= 2) {
-        return { name: parts[0], flag: parts[1] }
-      }
-      return { name: parts[0], flag: '' }
-    })
-    await addParticipantsBulk(id, items)
-    setBulkNames('')
-    setShowBulkInput(false)
-    loadData()
   }
 
   async function handleRemoveParticipant(pid) {
@@ -265,50 +265,47 @@ function Tournament() {
             </div>
           )}
 
-          <div className="flex gap-2 mb-4">
-            <button onClick={() => setShowNewFlagPicker(!showNewFlagPicker)}
-              className="w-10 flex items-center justify-center rounded border border-gray-700 bg-dark hover:border-gray-500 text-lg transition-all"
-              style={{ fontFamily: "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', sans-serif" }}>
-              {newFlag || '🏳️'}
-            </button>
-            {newFlag && (
-              <button onClick={() => setNewFlag('')} className="text-red-400 hover:text-red-300 text-xs px-1">✕</button>
+          <div className="relative mb-4">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={userSearchQuery}
+                  onChange={(e) => { handleUserSearch(e.target.value); setShowUserSearch(true) }}
+                  onFocus={() => setShowUserSearch(true)}
+                  placeholder="🔍 Buscar usuario por nickname..."
+                  className="w-full"
+                />
+                {showUserSearch && userSearchResults.length > 0 && (
+                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-dark-light border border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                    {userSearchResults.map(u => (
+                      <button key={u.id} onClick={() => { handleAddParticipant(u.id) }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark transition text-left">
+                        {u.avatar ? (
+                          <img src={u.avatar} className="w-8 h-8 rounded-full object-cover" alt="" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">{u.nickname?.charAt(0) || '?'}</div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-semibold text-sm truncate">{u.nickname}</p>
+                          {u.display_name && <p className="text-gray-500 text-xs truncate">{u.display_name}</p>}
+                        </div>
+                        {u.country && <span className="text-lg" style={{ fontFamily: "'Segoe UI Emoji', 'Apple Color Emoji', sans-serif" }}>{u.country}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showUserSearch && userSearchQuery && userSearchResults.length === 0 && (
+                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-dark-light border border-gray-700 rounded-lg shadow-xl p-4 text-center">
+                    <p className="text-gray-400 text-sm">No se encontraron usuarios</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            {showUserSearch && (
+              <div className="fixed inset-0 z-40" onClick={() => setShowUserSearch(false)} />
             )}
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddParticipant()}
-              placeholder="Nombre del participante"
-              className="flex-1"
-            />
-            <button onClick={handleAddParticipant} className="btn-primary">Añadir</button>
-            <button onClick={() => setShowBulkInput(!showBulkInput)} className="btn-secondary">📝 Bulk</button>
           </div>
-          {showNewFlagPicker && (
-            <div className="flex flex-wrap gap-1 mb-3">
-              {FLAGS_LIST.map(f => (
-                <button key={f} onClick={() => { setNewFlag(f); setShowNewFlagPicker(false) }}
-                  className={`w-8 h-8 rounded border text-base flex items-center justify-center transition-all ${newFlag === f ? 'border-primary bg-primary/10' : 'border-gray-700 bg-dark hover:border-gray-500'}`}
-                  style={{ fontFamily: "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', sans-serif" }}>
-                  {f}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {showBulkInput && (
-            <div className="mb-4">
-              <p className="text-[11px] text-gray-500 mb-1">Formato: <code className="text-gray-400">Nombre | Bandera</code> por línea (ej: <code className="text-gray-400">Juan | 🇪🇸</code>). La bandera es opcional.</p>
-              <textarea
-                value={bulkNames}
-                onChange={(e) => setBulkNames(e.target.value)}
-                placeholder={"Juan | 🇪🇸\nPedro | 🇲🇽\nAna\nCarlos | 🇦🇷"}
-                className="w-full h-32"
-              />
-              <button onClick={handleBulkAdd} className="btn-primary mt-2">Añadir Todos</button>
-            </div>
-          )}
 
           <div className="space-y-2">
             {tournament.participants?.map(p => (

@@ -188,24 +188,26 @@ router.post('/:id/participants', (req, res) => {
       userId = decoded.id;
     } catch {}
   }
-  if (!userId) return res.status(401).json({ error: 'Debes iniciar sesión para inscribirte' });
+  if (!userId) return res.status(401).json({ error: 'Debes iniciar sesión' });
 
-  const alreadyRegistered = db.prepare('SELECT id FROM participants WHERE tournament_id = ? AND user_id = ?').get(req.params.id, userId);
-  if (alreadyRegistered) {
-    return res.status(400).json({ error: 'Ya estás inscrito en este torneo' });
-  }
+  const { user_id } = req.body;
+  const targetUserId = user_id || userId;
+
+  const targetUser = db.prepare('SELECT id, nickname, flag FROM users WHERE id = ?').get(targetUserId);
+  if (!targetUser) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+  const alreadyRegistered = db.prepare('SELECT id FROM participants WHERE tournament_id = ? AND user_id = ?').get(req.params.id, targetUserId);
+  if (alreadyRegistered) return res.status(400).json({ error: 'Este usuario ya está inscrito en este torneo' });
 
   const existing = db.prepare('SELECT COUNT(*) as count FROM participants WHERE tournament_id = ?').get(req.params.id);
-  if (existing.count >= tournament.bracket_size) {
-    return res.status(400).json({ error: 'El torneo está lleno (' + tournament.bracket_size + ' participantes máximos)' });
-  }
+  if (existing.count >= tournament.bracket_size) return res.status(400).json({ error: 'El torneo está lleno (' + tournament.bracket_size + ' participantes máximos)' });
 
   const participantId = uuidv4();
   const seed = existing.count + 1;
-  const name = req.body.name || '';
-  const flag = req.body.flag || '';
+  const name = targetUser.nickname;
+  const flag = targetUser.flag || '';
 
-  db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(participantId, req.params.id, name, seed, flag, userId);
+  db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(participantId, req.params.id, name, seed, flag, targetUserId);
 
   const participant = db.prepare('SELECT * FROM participants WHERE id = ?').get(participantId);
   res.status(201).json(participant);
@@ -217,27 +219,29 @@ router.post('/:id/participants/bulk', (req, res) => {
   if (!tournament) return res.status(404).json({ error: 'Torneo no encontrado' });
 
   const existing = db.prepare('SELECT COUNT(*) as count FROM participants WHERE tournament_id = ?').get(req.params.id);
-  const requestedCount = Array.isArray(req.body.names) ? req.body.names.length : 0;
+  const requestedCount = Array.isArray(req.body.user_ids) ? req.body.user_ids.length : 0;
   if (existing.count + requestedCount > tournament.bracket_size) {
     return res.status(400).json({ error: `No caben ${requestedCount} participantes. Quedan ${tournament.bracket_size - existing.count} huecos de ${tournament.bracket_size}` });
   }
 
-  const insertParticipant = db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag) VALUES (?, ?, ?, ?, ?)');
+  const insertParticipant = db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag, user_id) VALUES (?, ?, ?, ?, ?, ?)');
   const participants = [];
 
-  const insertMany = db.transaction((items) => {
+  const insertMany = db.transaction((userIds) => {
     let seed = existing.count + 1;
-    for (const item of items) {
+    for (const uid of userIds) {
+      const user = db.prepare('SELECT id, nickname, flag FROM users WHERE id = ?').get(uid);
+      if (!user) continue;
+      const alreadyExists = db.prepare('SELECT id FROM participants WHERE tournament_id = ? AND user_id = ?').get(req.params.id, uid);
+      if (alreadyExists) continue;
       const id = uuidv4();
-      const name = typeof item === 'string' ? item : item.name;
-      const flag = typeof item === 'object' ? (item.flag || '') : '';
-      insertParticipant.run(id, req.params.id, name, seed, flag);
-      participants.push({ id, tournament_id: req.params.id, name, seed, flag });
+      insertParticipant.run(id, req.params.id, user.nickname, seed, user.flag || '', uid);
+      participants.push({ id, tournament_id: req.params.id, name: user.nickname, seed, flag: user.flag || '', user_id: uid });
       seed++;
     }
   });
 
-  insertMany(req.body.names);
+  insertMany(req.body.user_ids || []);
   res.status(201).json(participants);
 });
 
