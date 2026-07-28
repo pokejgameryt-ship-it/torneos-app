@@ -19,6 +19,18 @@ router.get('/my/registrations', (req, res) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
     const db = getDb();
+
+    const user = db.prepare('SELECT nickname FROM users WHERE id = ?').get(decoded.id);
+    const nickname = user ? user.nickname : '';
+
+    const orphans = db.prepare(
+      'SELECT id, tournament_id FROM participants WHERE tournament_id IN (SELECT tournament_id FROM participants WHERE (user_id = ? OR (user_id IS NULL AND LOWER(name) = LOWER(?)))) AND user_id IS NULL AND LOWER(name) = LOWER(?)'
+    ).all(decoded.id, nickname, nickname);
+    if (orphans.length > 0) {
+      const linkStmt = db.prepare('UPDATE participants SET user_id = ? WHERE id = ?');
+      for (const o of orphans) { linkStmt.run(decoded.id, o.id); }
+    }
+
     const participations = db.prepare(`
       SELECT t.*, p.seed, p.flag as participant_flag, p.name as participant_name
       FROM participants p JOIN tournaments t ON p.tournament_id = t.id
@@ -400,7 +412,19 @@ router.post('/:id/register', (req, res) => {
 
   const id = uuidv4();
   const seed = count.count + 1;
-  db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag) VALUES (?, ?, ?, ?, ?)').run(id, req.params.id, name.trim(), seed, flag || '');
+
+  let userId = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const { JWT_SECRET } = require('../middleware/auth');
+      const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      userId = decoded.id;
+    } catch {}
+  }
+
+  db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(id, req.params.id, name.trim(), seed, flag || '', userId);
   const participant = db.prepare('SELECT * FROM participants WHERE id = ?').get(id);
   res.status(201).json({ success: true, participant, remaining: tournament.bracket_size - seed });
 });

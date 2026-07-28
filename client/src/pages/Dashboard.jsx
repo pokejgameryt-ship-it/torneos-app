@@ -123,23 +123,56 @@ function Dashboard() {
             <h2 className="text-2xl font-bold text-white mb-4">🎯 Mis Torneos</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {myTournaments.map(t => (
-                <Link key={t.id} to={`/view/${t.id}`}
-                  className={`bg-dark-light rounded-xl border p-4 hover:border-primary/50 transition-all ${t.status === 'active' ? 'border-green-500/50 shadow-lg shadow-green-500/10' : 'border-gray-700'}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-white font-bold flex-1 truncate">{t.name}</h3>
-                    {t.status === 'active' && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-500/20 px-2 py-0.5 rounded-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                        LIVE
-                      </span>
-                    )}
+                <div key={t.id} className={`bg-dark-light rounded-xl border p-4 transition-all ${t.status === 'active' ? 'border-green-500/50 shadow-lg shadow-green-500/10' : 'border-gray-700'}`}>
+                  <Link to={`/view/${t.id}`} className="block hover:border-primary/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-white font-bold flex-1 truncate">{t.name}</h3>
+                      {t.status === 'active' && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-500/20 px-2 py-0.5 rounded-full">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                          LIVE
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-400 text-sm">{t.game} • {t.participant_name || t.name}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      {getStatusBadge(t.status)}
+                      <span className="text-xs text-gray-500">#{t.seed} seed</span>
+                    </div>
+                  </Link>
+                  <div className="flex gap-2 flex-wrap mt-3 pt-3 border-t border-gray-700">
+                    {(() => {
+                      const isCreator = user?.id === t.creator_id
+                      const isPending = t.status === 'pending'
+                      const isActive = t.status === 'active'
+                      const myMatch = t.my_current_match
+
+                      return (
+                        <>
+                          {isCreator && (
+                            <Link to={`/tournament/${t.id}`} className="btn-primary flex-1 text-center text-sm">Gestionar</Link>
+                          )}
+                          {isPending && !isCreator && (
+                            <span className="flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold bg-blue-600/20 text-blue-400">
+                              ✓ Inscrito
+                            </span>
+                          )}
+                          {isActive && myMatch && (
+                            <Link to={`/tournament/${t.id}?tab=bracket`} className="bg-green-600 hover:bg-green-500 text-white flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold transition">
+                              ⚔️ Empezar Set
+                            </Link>
+                          )}
+                          {isActive && !myMatch && (
+                            <span className="flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold bg-gray-700 text-gray-400">
+                              ⏳ Esperando set...
+                            </span>
+                          )}
+                          <Link to={`/view/${t.id}`} className="btn-secondary flex-1 text-center text-sm" target="_blank">Ver Bracket</Link>
+                        </>
+                      )
+                    })()}
                   </div>
-                  <p className="text-gray-400 text-sm">{t.game} • {t.participant_name || t.name}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    {getStatusBadge(t.status)}
-                    <span className="text-xs text-gray-500">#{t.seed} seed</span>
-                  </div>
-                </Link>
+                </div>
               ))}
             </div>
           </div>
