@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { GAMES_LIST, searchGames } from '../data/games'
 
 const TOURNAMENT_TYPES = ['1v1', '2v2', '3v3', '4v4']
-const BRACKET_SIZES = [4, 8, 16, 32, 64]
+const BRACKET_SIZES = [2, 4, 8, 16, 32, 64]
 const GAME_TYPES = [
   { value: 'other', label: '🎮 Juego Genérico', desc: 'Funcionamiento estándar' },
   { value: 'pokemon', label: '🔥 Pokémon', desc: 'Open Team Sheets, VGC, Doubles' },
