@@ -45,11 +45,8 @@ export default function DMPage() {
 
   const handleSend = async () => {
     if (!input.trim() || !userId) return;
-    const msg = await sendDM(userId, input.trim(), token);
-    if (msg && msg.id) {
-      setMessages(prev => [...prev, msg]);
-    }
     setInput('');
+    await sendDM(userId, input.trim(), token);
     getDMConversations(token).then(setConversations);
   };
 

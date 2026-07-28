@@ -13,6 +13,7 @@ import MatchChat from '../components/MatchChat'
 import StagePicker from '../components/StagePicker'
 import PokePasteInput from '../components/PokePasteInput'
 import CharacterPicker from '../components/CharacterPicker'
+import MatchRoom from '../components/MatchRoom'
 
 function Tournament() {
   const { id } = useParams()
@@ -31,6 +32,7 @@ function Tournament() {
   const [p1Score, setP1Score] = useState(0)
   const [p2Score, setP2Score] = useState(0)
   const [chatMatchId, setChatMatchId] = useState(null)
+  const [matchRoomMatch, setMatchRoomMatch] = useState(null)
   const socketRef = useRef(null)
 
   useEffect(() => {
@@ -363,6 +365,7 @@ function Tournament() {
           onUndo={handleUndo}
           onNextMatch={handleNextMatch}
           refresh={loadBracket}
+          onOpenMatchRoom={setMatchRoomMatch}
         />
       )}
 
@@ -392,11 +395,15 @@ function Tournament() {
       {chatMatchId && (
         <MatchChat matchId={chatMatchId} onClose={() => setChatMatchId(null)} />
       )}
+
+      {matchRoomMatch && (
+        <MatchRoom match={matchRoomMatch} tournament={tournament} onClose={() => setMatchRoomMatch(null)} onUpdate={loadBracket} />
+      )}
     </div>
   )
 }
 
-function BracketView({ bracket, tournament, onSelectMatch, onUndo, onNextMatch, refresh }) {
+function BracketView({ bracket, tournament, onSelectMatch, onUndo, onNextMatch, refresh, onOpenMatchRoom }) {
   const { user } = useAuth()
   const { winners, losers, grandFinal } = bracket.bracket
   const currentOrder = tournament.current_match_order || 0
@@ -543,16 +550,22 @@ function BracketView({ bracket, tournament, onSelectMatch, onUndo, onNextMatch, 
           </button>
         )}
 
-        {tournament?.game_type === 'smash' && (canEdit || isCompleted) && match.player1_id && match.player2_id && tournament?.allow_gentleman && (
-          <StagePicker matchId={match.id} allowGentleman={tournament.allow_gentleman} onUpdate={refresh} />
-        )}
-
-        {tournament?.game_type === 'smash' && (canEdit || isCompleted) && match.player1_id && match.player2_id && (
-          <div className="mt-2 space-y-2">
-            <CharacterPicker matchId={match.id} currentCharacter={match.character1} player={1} onUpdate={refresh} />
-            <CharacterPicker matchId={match.id} currentCharacter={match.character2} player={2} onUpdate={refresh} />
-          </div>
-        )}
+        {canEdit && isCurrent && user && match.player1_id && match.player2_id && (() => {
+          const p1UserId = tournament.participants?.find(p => p.id === match.player1_id)?.user_id;
+          const p2UserId = tournament.participants?.find(p => p.id === match.player2_id)?.user_id;
+          const isAssigned = user.id === p1UserId || user.id === p2UserId;
+          if (isAssigned) {
+            return (
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenMatchRoom(match); }}
+                className="w-full mt-2 bg-green-600 hover:bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-bold transition-all hover:scale-105 shadow-lg shadow-green-600/30"
+              >
+                ⚔️ Empezar Combate
+              </button>
+            );
+          }
+          return null;
+        })()}
 
         {tournament?.game_type === 'pokemon' && tournament?.open_team_sheets && (canEdit || isCompleted) && match.player1_id && match.player2_id && (
           <div className="mt-2">
