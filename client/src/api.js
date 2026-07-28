@@ -228,6 +228,11 @@ export async function getDMConversations(token) {
   return res.json();
 }
 
+export async function getDMUnreadCount(token) {
+  const res = await fetch(`${API_BASE}/dms/unread-count`, { headers: authHeaders(token) });
+  return res.json();
+}
+
 export async function getDMMessages(userId, token) {
   const res = await fetch(`${API_BASE}/dms/${userId}`, { headers: authHeaders(token) });
   return res.json();

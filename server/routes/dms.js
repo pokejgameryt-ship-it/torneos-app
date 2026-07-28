@@ -4,6 +4,12 @@ const { getDb } = require('../db');
 const { authRequired } = require('../middleware/auth');
 const router = express.Router();
 
+router.get('/unread-count', authRequired, (req, res) => {
+  const db = getDb();
+  const result = db.prepare('SELECT COUNT(*) as count FROM direct_messages WHERE receiver_id = ? AND is_read = 0').get(req.user.id);
+  res.json({ count: result.count });
+});
+
 router.get('/conversations', authRequired, (req, res) => {
   const db = getDb();
   const userId = req.user.id;
@@ -36,6 +42,8 @@ router.get('/:userId', authRequired, (req, res) => {
     ORDER BY dm.created_at ASC
   `).all(req.user.id, req.params.userId, req.params.userId, req.user.id);
   db.prepare('UPDATE direct_messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = ? AND is_read = 0').run(req.params.userId, req.user.id);
+  const io = req.app.get('io');
+  if (io) io.to(`dm:${req.user.id}`).emit('dm:read');
   res.json(messages);
 });
 
@@ -52,7 +60,10 @@ router.post('/:userId', authRequired, (req, res) => {
     FROM direct_messages dm JOIN users u ON dm.sender_id = u.id WHERE dm.id = ?
   `).get(id);
   const io = req.app.get('io');
-  if (io) io.to(`dm:${req.params.userId}`).emit('dm:message', msg);
+  if (io) {
+    io.to(`dm:${req.params.userId}`).emit('dm:message', msg);
+    io.to(`dm:${req.user.id}`).emit('dm:message', msg);
+  }
   res.json(msg);
 });
 

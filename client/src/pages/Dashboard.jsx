@@ -1,18 +1,37 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchTournaments, deleteTournament, getMyTournaments } from '../api'
+import { fetchTournaments, deleteTournament, getMyTournaments, getDMUnreadCount, SOCKET_URL } from '../api'
 import { useAuth } from '../context/AuthContext'
+import { io } from 'socket.io-client'
 
 function Dashboard() {
   const { user, token, logout } = useAuth()
   const [tournaments, setTournaments] = useState([])
   const [myTournaments, setMyTournaments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const socketRef = useRef(null)
 
   useEffect(() => {
     loadTournaments()
-    if (token) getMyTournaments(token).then(setMyTournaments)
+    if (token) {
+      getMyTournaments(token).then(setMyTournaments)
+      getDMUnreadCount(token).then(d => setUnreadCount(d.count || 0))
+    }
   }, [token])
+
+  useEffect(() => {
+    if (!token || !user) return
+    socketRef.current = io(SOCKET_URL, { transports: ['websocket', 'polling'] })
+    socketRef.current.emit('join:dm', user.id)
+    socketRef.current.on('dm:message', () => {
+      getDMUnreadCount(token).then(d => setUnreadCount(d.count || 0))
+    })
+    socketRef.current.on('dm:read', () => {
+      getDMUnreadCount(token).then(d => setUnreadCount(d.count || 0))
+    })
+    return () => { if (socketRef.current) { socketRef.current.emit('leave:dm', user.id); socketRef.current.disconnect() } }
+  }, [token, user])
 
   async function loadTournaments() {
     const data = await fetchTournaments()
@@ -40,7 +59,10 @@ function Dashboard() {
           <Link to="/" className="text-xl font-bold text-primary">🏆 Torneos</Link>
           <div className="flex items-center gap-2">
             <Link to="/search" className="text-sm text-gray-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-dark transition">🔍 Buscar</Link>
-            {user && <Link to="/dm" className="text-sm text-gray-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-dark transition">💬 Chats</Link>}
+            {user && <Link to="/dm" className="text-sm text-gray-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-dark transition relative">
+              💬 Chats
+              {unreadCount > 0 && <span className="absolute -top-1.5 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+            </Link>}
             <Link to="/help" className="text-sm text-gray-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-dark transition">❓ Ayuda</Link>
             {user ? (
               <>

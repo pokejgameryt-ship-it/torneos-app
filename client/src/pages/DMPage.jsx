@@ -34,6 +34,9 @@ export default function DMPage() {
       }
       getDMConversations(token).then(setConversations);
     });
+    s.on('dm:read', () => {
+      getDMConversations(token).then(setConversations);
+    });
     setSocket(s);
     return () => { s.emit('leave:dm', user?.id); s.disconnect(); };
   }, [userId, token]);
@@ -42,7 +45,10 @@ export default function DMPage() {
 
   const handleSend = async () => {
     if (!input.trim() || !userId) return;
-    await sendDM(userId, input.trim(), token);
+    const msg = await sendDM(userId, input.trim(), token);
+    if (msg && msg.id) {
+      setMessages(prev => [...prev, msg]);
+    }
     setInput('');
     getDMConversations(token).then(setConversations);
   };
