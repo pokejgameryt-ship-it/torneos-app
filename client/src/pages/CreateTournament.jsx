@@ -48,6 +48,7 @@ function CreateTournament() {
     open_team_sheets: false,
     format_mode: 'singles',
     allow_gentleman: true,
+    requirements: [],
     formats: PHASES_DEFAULT.map(p => ({ ...p }))
   })
   const [loading, setLoading] = useState(false)
@@ -83,6 +84,7 @@ function CreateTournament() {
         open_team_sheets: form.open_team_sheets,
         format_mode: form.format_mode,
         allow_gentleman: form.allow_gentleman,
+        requirements: form.requirements,
         creator_id: null
       }
       const tournament = await createTournament(data, token)
@@ -276,6 +278,34 @@ function CreateTournament() {
             </div>
           )}
 
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Requisitos de inscripción (opcional)</label>
+            <p className="text-xs text-gray-500 mb-2">Los jugadores deben cumplir estos requisitos para inscribirse</p>
+            <div className="space-y-2">
+              {form.requirements.map((req, i) => (
+                <div key={i} className="flex items-center gap-2 bg-dark rounded-lg p-2">
+                  <span className="text-xs text-gray-400">{req.type === 'country' ? '🏳️ País' : '🌍 Continente'}:</span>
+                  <span className="text-sm text-white flex-1">{req.value}</span>
+                  <button type="button" onClick={() => setForm(prev => ({ ...prev, requirements: prev.requirements.filter((_, j) => j !== i) }))} className="text-red-400 text-xs hover:text-red-300">✕</button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <select id="req-type" className="w-32 text-sm">
+                  <option value="country">🏳️ País</option>
+                  <option value="continent">🌍 Continente</option>
+                </select>
+                <input type="text" id="req-value" placeholder="ej: ES, Europa, NA..." className="flex-1 text-sm" />
+                <button type="button" onClick={() => {
+                  const type = document.getElementById('req-type').value;
+                  const value = document.getElementById('req-value').value.trim();
+                  if (!value) return;
+                  setForm(prev => ({ ...prev, requirements: [...prev.requirements, { type, value }] }));
+                  document.getElementById('req-value').value = '';
+                }} className="btn-secondary text-sm">+ Añadir</button>
+              </div>
+            </div>
+          </div>
+
           <div className="flex gap-3 pt-4">
             <button onClick={() => navigate('/')} className="btn-secondary flex-1">Cancelar</button>
             <button onClick={() => setStep(2)} className="btn-primary flex-1">Siguiente</button>
@@ -324,6 +354,9 @@ function CreateTournament() {
             <p><span className="text-gray-400">Eliminación:</span> <span className="text-white">{form.elimination_type === 'double' ? 'Doble' : 'Simple'}</span></p>
             <p><span className="text-gray-400">Bracket:</span> <span className="text-white">{form.bracket_size} jugadores</span></p>
             <p><span className="text-gray-400">Privacidad:</span> <span className="text-white">{form.is_public ? 'Público' : 'Privado con contraseña'}</span></p>
+            {form.requirements.length > 0 && (
+              <p><span className="text-gray-400">Requisitos:</span> <span className="text-white">{form.requirements.map(r => `${r.type === 'country' ? 'País' : 'Continente'}: ${r.value}`).join(', ')}</span></p>
+            )}
             <p><span className="text-gray-400">Modo:</span> <span className="text-white">{form.sequential_matches ? 'Uno por uno' : 'Simultáneos'}</span></p>
             {form.game_type === 'pokemon' && <p><span className="text-gray-400">Open Team Sheets:</span> <span className="text-white">{form.open_team_sheets ? 'Sí' : 'No'}</span></p>}
             {form.game_type === 'pokemon' && <p><span className="text-gray-400">Formato:</span> <span className="text-white">{form.format_mode}</span></p>}

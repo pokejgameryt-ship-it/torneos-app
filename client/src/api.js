@@ -166,3 +166,96 @@ export async function sendChatMessage(matchId, content, token) {
   });
   return res.json();
 }
+
+export async function searchTournaments(q, game, status) {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (game) params.set('game', game);
+  if (status) params.set('status', status);
+  const res = await fetch(`${API_BASE}/search/tournaments?${params}`);
+  return res.json();
+}
+
+export async function searchUsers(q) {
+  const res = await fetch(`${API_BASE}/search/users?q=${encodeURIComponent(q)}`);
+  return res.json();
+}
+
+export async function getMyTournaments(token) {
+  const res = await fetch(`${API_BASE}/tournaments/my/registrations`, { headers: authHeaders(token) });
+  return res.json();
+}
+
+export async function getProfile(userId) {
+  const res = await fetch(`${API_BASE}/profile/${userId}`);
+  return res.json();
+}
+
+export async function getMyProfile(token) {
+  const res = await fetch(`${API_BASE}/profile/me/full`, { headers: authHeaders(token) });
+  return res.json();
+}
+
+export async function updateProfile(data, token) {
+  const res = await fetch(`${API_BASE}/profile/me`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+export async function changePassword(data, token) {
+  const res = await fetch(`${API_BASE}/profile/me/password`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+export async function changeNickname(nickname, token) {
+  const res = await fetch(`${API_BASE}/profile/me/nickname`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ nickname })
+  });
+  return res.json();
+}
+
+export async function getDMConversations(token) {
+  const res = await fetch(`${API_BASE}/dms/conversations`, { headers: authHeaders(token) });
+  return res.json();
+}
+
+export async function getDMMessages(userId, token) {
+  const res = await fetch(`${API_BASE}/dms/${userId}`, { headers: authHeaders(token) });
+  return res.json();
+}
+
+export async function sendDM(userId, content, token) {
+  const res = await fetch(`${API_BASE}/dms/${userId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ content })
+  });
+  return res.json();
+}
+
+export async function registerForTournament(tournamentId, data, token) {
+  const res = await fetch(`${API_BASE}/tournaments/${tournamentId}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+export async function selectCharacter(matchId, character, player, token) {
+  const res = await fetch(`${API_BASE}/matches/${matchId}/character`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ character, player })
+  });
+  return res.json();
+}

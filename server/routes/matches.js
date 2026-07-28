@@ -12,6 +12,20 @@ router.get('/:id', (req, res) => {
   res.json(match);
 });
 
+router.put('/:id/character', authRequired, (req, res) => {
+  const { character, player } = req.body;
+  if (!character) return res.status(400).json({ error: 'character requerido' });
+  const db = getDb();
+  const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
+  if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
+  const col = player === 2 ? 'character2' : 'character1';
+  db.prepare(`UPDATE matches SET ${col} = ? WHERE id = ?`).run(character, req.params.id);
+  const io = req.app.get('io');
+  if (io) io.to(`match:${req.params.id}`).emit('stage:updated', { matchId: req.params.id });
+  const updated = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
+  res.json({ success: true, match: updated });
+});
+
 router.put('/:id/result', (req, res) => {
   const db = getDb();
   const { winner_id, player1_score, player2_score } = req.body;

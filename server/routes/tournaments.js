@@ -10,6 +10,24 @@ router.get('/', (req, res) => {
   res.json(tournaments);
 });
 
+router.get('/my/registrations', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return res.json([]);
+  try {
+    const jwt = require('jsonwebtoken');
+    const { JWT_SECRET } = require('../middleware/auth');
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const db = getDb();
+    const participations = db.prepare(`
+      SELECT t.*, p.seed, p.flag as participant_flag, p.name as participant_name
+      FROM participants p JOIN tournaments t ON p.tournament_id = t.id
+      WHERE p.user_id = ? ORDER BY t.created_at DESC
+    `).all(decoded.id);
+    res.json(participations);
+  } catch { res.json([]); }
+});
+
 router.get('/:id', (req, res) => {
   const db = getDb();
   const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(req.params.id);
@@ -23,15 +41,15 @@ router.get('/:id', (req, res) => {
 
 router.post('/', (req, res) => {
   const db = getDb();
-  const { name, game, tournament_type, elimination_type, bracket_size, is_public, password, formats, sequential_matches, creator_id, game_type, open_team_sheets, format_mode, allow_gentleman } = req.body;
+  const { name, game, tournament_type, elimination_type, bracket_size, is_public, password, formats, sequential_matches, creator_id, game_type, open_team_sheets, format_mode, allow_gentleman, requirements } = req.body;
 
   const id = uuidv4();
   const bracketSize = bracket_size || 8;
 
   db.prepare(`
-    INSERT INTO tournaments (id, name, game, tournament_type, elimination_type, bracket_size, is_public, password, sequential_matches, creator_id, game_type, open_team_sheets, format_mode, allow_gentleman)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, name, game || '', tournament_type || '1v1', elimination_type || 'single', bracketSize, is_public !== false ? 1 : 0, password || null, sequential_matches ? 1 : 0, creator_id || null, game_type || 'other', open_team_sheets ? 1 : 0, format_mode || 'singles', allow_gentleman !== false ? 1 : 0);
+    INSERT INTO tournaments (id, name, game, tournament_type, elimination_type, bracket_size, is_public, password, sequential_matches, creator_id, game_type, open_team_sheets, format_mode, allow_gentleman, requirements)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, name, game || '', tournament_type || '1v1', elimination_type || 'single', bracketSize, is_public !== false ? 1 : 0, password || null, sequential_matches ? 1 : 0, creator_id || null, game_type || 'other', open_team_sheets ? 1 : 0, format_mode || 'singles', allow_gentleman !== false ? 1 : 0, JSON.stringify(requirements || []));
 
   if (formats && Array.isArray(formats)) {
     const insertFormat = db.prepare('INSERT INTO tournament_formats (id, tournament_id, phase, format) VALUES (?, ?, ?, ?)');
@@ -282,22 +300,28 @@ router.post('/:id/register', (req, res) => {
   if (!name || !name.trim()) return res.status(400).json({ error: 'El nombre es obligatorio' });
 
   const count = db.prepare('SELECT COUNT(*) as count FROM participants WHERE tournament_id = ?').get(req.params.id);
-  if (count.count >= tournament.bracket_size) {
-    return res.status(400).json({ error: 'El torneo está lleno' });
-  }
+  if (count.count >= tournament.bracket_size) return res.status(400).json({ error: 'El torneo está lleno' });
 
   const existing = db.prepare('SELECT * FROM participants WHERE tournament_id = ? AND LOWER(name) = LOWER(?)').get(req.params.id, name.trim());
-  if (existing) {
-    return res.status(400).json({ error: 'Ya hay un participante con ese nombre' });
+  if (existing) return res.status(400).json({ error: 'Ya hay un participante con ese nombre' });
+
+  if (tournament.requirements) {
+    try {
+      const reqs = JSON.parse(tournament.requirements);
+      if (reqs.length > 0 && flag) {
+        const FLAGS_CONTINENT = { '🇪🇸':'EU','🇲🇽':'NA','🇦🇷':'SA','🇧🇷':'SA','🇺🇸':'NA','🇯🇵':'AS','🇰🇷':'AS','🇫🇷':'EU','🇩🇪':'EU','🇬🇧':'EU','🇮🇹':'EU','🇵🇹':'EU','🇨🇳':'AS','🇷🇺':'EU','🇦🇺':'OC','🇨🇦':'NA','🇳🇱':'EU','🇸🇪':'EU','🇨🇭':'EU','🇵🇱':'EU','🇹🇷':'EU','🇮🇳':'AS','🇹🇭':'AS','🇻🇳':'AS','🇮🇩':'AS','🇵🇭':'AS','🇲🇾':'AS','🇸🇬':'AS','🇳igeria':'AF','🇬🇭':'AF','🇿🇦':'AF','🇪🇬':'AF','🇲🇦':'AF','🇨🇴':'SA','🇨🇱':'SA','🇵🇪':'SA','🇪🇨':'SA','🇻🇪':'SA','🇩🇴':'NA','🇵🇷':'NA','🇨🇺':'NA' };
+        const userContinent = FLAGS_CONTINENT[flag] || '';
+        for (const r of reqs) {
+          if (r.type === 'country' && flag !== r.value) return res.status(400).json({ error: `Este torneo requiere bandera: ${r.value}` });
+          if (r.type === 'continent' && userContinent !== r.value) return res.status(400).json({ error: `Este torneo requiere continente: ${r.value}` });
+        }
+      }
+    } catch {}
   }
 
   const id = uuidv4();
   const seed = count.count + 1;
-
-  db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag) VALUES (?, ?, ?, ?, ?)').run(
-    id, req.params.id, name.trim(), seed, flag || ''
-  );
-
+  db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag) VALUES (?, ?, ?, ?, ?)').run(id, req.params.id, name.trim(), seed, flag || '');
   const participant = db.prepare('SELECT * FROM participants WHERE id = ?').get(id);
   res.status(201).json({ success: true, participant, remaining: tournament.bracket_size - seed });
 });

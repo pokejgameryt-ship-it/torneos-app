@@ -3,6 +3,14 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   nickname TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  display_name TEXT DEFAULT '',
+  bio TEXT DEFAULT '',
+  games TEXT DEFAULT '[]',
+  avatar TEXT DEFAULT '',
+  country TEXT DEFAULT '',
+  continent TEXT DEFAULT '',
+  default_nickname TEXT DEFAULT '',
+  default_flag TEXT DEFAULT '',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -23,6 +31,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
   open_team_sheets INTEGER DEFAULT 0,
   format_mode TEXT DEFAULT 'singles',
   allow_gentleman INTEGER DEFAULT 1,
+  requirements TEXT DEFAULT '[]',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (creator_id) REFERENCES users(id)
 );
@@ -56,6 +65,8 @@ CREATE TABLE IF NOT EXISTS matches (
   match_order INTEGER DEFAULT 0,
   team_paste_url TEXT,
   stage_used TEXT,
+  character1 TEXT DEFAULT '',
+  character2 TEXT DEFAULT '',
   FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
   FOREIGN KEY (player1_id) REFERENCES participants(id),
   FOREIGN KEY (player2_id) REFERENCES participants(id),
@@ -126,3 +137,17 @@ CREATE TABLE IF NOT EXISTS match_stage_mode (
   agreed_by_p2 INTEGER DEFAULT 0,
   FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS direct_messages (
+  id TEXT PRIMARY KEY,
+  sender_id TEXT NOT NULL,
+  receiver_id TEXT NOT NULL,
+  content TEXT NOT NULL,
+  is_read INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (sender_id) REFERENCES users(id),
+  FOREIGN KEY (receiver_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dm_sender ON direct_messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_dm_receiver ON direct_messages(receiver_id);

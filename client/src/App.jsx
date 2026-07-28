@@ -7,6 +7,11 @@ import PublicTournament from './pages/PublicTournament'
 import RegisterPage from './pages/RegisterPage'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
+import SearchPage from './pages/SearchPage'
+import ProfilePage from './pages/ProfilePage'
+import UserSettings from './pages/UserSettings'
+import DMPage from './pages/DMPage'
+import HelpPage from './pages/HelpPage'
 
 function App() {
   return (
@@ -21,6 +26,12 @@ function App() {
             <Route path="/register/:id" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/profile/:id" element={<ProfilePage />} />
+            <Route path="/settings" element={<UserSettings />} />
+            <Route path="/dm" element={<DMPage />} />
+            <Route path="/dm/:userId" element={<DMPage />} />
+            <Route path="/help" element={<HelpPage />} />
           </Routes>
         </div>
       </Router>

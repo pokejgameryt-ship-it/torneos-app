@@ -56,10 +56,14 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const updateUser = (updates) => {
+    setUser(prev => prev ? { ...prev, ...updates } : null);
+  };
+
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, authHeaders }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser, authHeaders }}>
       {children}
     </AuthContext.Provider>
   );

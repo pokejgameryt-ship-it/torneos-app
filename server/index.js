@@ -22,6 +22,9 @@ app.use('/api/matches', require('./routes/matches'));
 app.use('/api/bracket', require('./routes/bracket'));
 app.use('/api/overlay-settings', require('./routes/overlay-settings'));
 app.use('/api', require('./routes/chat'));
+app.use('/api/profile', require('./routes/profile'));
+app.use('/api/search', require('./routes/search'));
+app.use('/api/dms', require('./routes/dms'));
 
 app.use('/overlays', express.static(path.join(__dirname, '..', 'overlays')));
 
@@ -59,6 +62,14 @@ io.on('connection', (socket) => {
 
   socket.on('leave:match', (matchId) => {
     socket.leave(`match:${matchId}`);
+  });
+
+  socket.on('join:dm', (userId) => {
+    socket.join(`dm:${userId}`);
+  });
+
+  socket.on('leave:dm', (userId) => {
+    socket.leave(`dm:${userId}`);
   });
 
   socket.on('disconnect', () => {

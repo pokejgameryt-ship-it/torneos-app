@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import MatchChat from '../components/MatchChat'
 import StagePicker from '../components/StagePicker'
 import PokePasteInput from '../components/PokePasteInput'
+import CharacterPicker from '../components/CharacterPicker'
 
 function Tournament() {
   const { id } = useParams()
@@ -522,6 +523,13 @@ function BracketView({ bracket, tournament, onSelectMatch, onUndo, onNextMatch, 
 
         {tournament?.game_type === 'smash' && (canEdit || isCompleted) && match.player1_id && match.player2_id && tournament?.allow_gentleman && (
           <StagePicker matchId={match.id} allowGentleman={tournament.allow_gentleman} onUpdate={refresh} />
+        )}
+
+        {tournament?.game_type === 'smash' && (canEdit || isCompleted) && match.player1_id && match.player2_id && (
+          <div className="mt-2 space-y-2">
+            <CharacterPicker matchId={match.id} currentCharacter={match.character1} player={1} onUpdate={refresh} />
+            <CharacterPicker matchId={match.id} currentCharacter={match.character2} player={2} onUpdate={refresh} />
+          </div>
         )}
 
         {tournament?.game_type === 'pokemon' && tournament?.open_team_sheets && (canEdit || isCompleted) && match.player1_id && match.player2_id && (

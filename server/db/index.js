@@ -18,6 +18,10 @@ function getDb() {
 
     // Migrations: add columns that may not exist in older DBs
     const cols = db.prepare("PRAGMA table_info(overlay_settings)").all().map(c => c.name);
+    const ucols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
+    const tcols = db.prepare("PRAGMA table_info(tournaments)").all().map(c => c.name);
+    const mcols = db.prepare("PRAGMA table_info(matches)").all().map(c => c.name);
+    const pcols = db.prepare("PRAGMA table_info(participants)").all().map(c => c.name);
     if (!cols.includes('custom_colors')) {
       db.exec("ALTER TABLE overlay_settings ADD COLUMN custom_colors INTEGER NOT NULL DEFAULT 0");
     }
@@ -25,12 +29,10 @@ function getDb() {
       db.exec("ALTER TABLE overlay_settings ADD COLUMN overlay_shape TEXT NOT NULL DEFAULT 'rect'");
     }
 
-    const pcols = db.prepare("PRAGMA table_info(participants)").all().map(c => c.name);
     if (!pcols.includes('flag')) {
       db.exec("ALTER TABLE participants ADD COLUMN flag TEXT DEFAULT ''");
     }
 
-    const tcols = db.prepare("PRAGMA table_info(tournaments)").all().map(c => c.name);
     if (!tcols.includes('current_match_order')) {
       db.exec("ALTER TABLE tournaments ADD COLUMN current_match_order INTEGER NOT NULL DEFAULT 0");
     }
@@ -38,7 +40,6 @@ function getDb() {
       db.exec("ALTER TABLE tournaments ADD COLUMN sequential_matches INTEGER NOT NULL DEFAULT 0");
     }
 
-    const mcols = db.prepare("PRAGMA table_info(matches)").all().map(c => c.name);
     if (!mcols.includes('match_order')) {
       db.exec("ALTER TABLE matches ADD COLUMN match_order INTEGER DEFAULT 0");
     }
@@ -113,6 +114,57 @@ function getDb() {
         FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
       )
     `);
+
+    if (!ucols.includes('display_name')) {
+      db.exec("ALTER TABLE users ADD COLUMN display_name TEXT DEFAULT ''");
+    }
+    if (!ucols.includes('bio')) {
+      db.exec("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''");
+    }
+    if (!ucols.includes('games')) {
+      db.exec("ALTER TABLE users ADD COLUMN games TEXT DEFAULT '[]'");
+    }
+    if (!ucols.includes('avatar')) {
+      db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT ''");
+    }
+    if (!ucols.includes('country')) {
+      db.exec("ALTER TABLE users ADD COLUMN country TEXT DEFAULT ''");
+    }
+    if (!ucols.includes('continent')) {
+      db.exec("ALTER TABLE users ADD COLUMN continent TEXT DEFAULT ''");
+    }
+    if (!ucols.includes('default_nickname')) {
+      db.exec("ALTER TABLE users ADD COLUMN default_nickname TEXT DEFAULT ''");
+    }
+    if (!ucols.includes('default_flag')) {
+      db.exec("ALTER TABLE users ADD COLUMN default_flag TEXT DEFAULT ''");
+    }
+
+    if (!tcols.includes('requirements')) {
+      db.exec("ALTER TABLE tournaments ADD COLUMN requirements TEXT DEFAULT '[]'");
+    }
+
+    if (!mcols.includes('character1')) {
+      db.exec("ALTER TABLE matches ADD COLUMN character1 TEXT DEFAULT ''");
+    }
+    if (!mcols.includes('character2')) {
+      db.exec("ALTER TABLE matches ADD COLUMN character2 TEXT DEFAULT ''");
+    }
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS direct_messages (
+        id TEXT PRIMARY KEY,
+        sender_id TEXT NOT NULL,
+        receiver_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (sender_id) REFERENCES users(id),
+        FOREIGN KEY (receiver_id) REFERENCES users(id)
+      )
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_dm_sender ON direct_messages(sender_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_dm_receiver ON direct_messages(receiver_id)');
   }
   return db;
 }
