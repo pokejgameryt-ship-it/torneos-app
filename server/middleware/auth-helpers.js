@@ -1,4 +1,4 @@
-const { getDb } = require('./db');
+const { getDb } = require('../db');
 
 function isMatchParticipant(matchId, userId) {
   const db = getDb();
