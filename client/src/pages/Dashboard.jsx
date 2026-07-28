@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { fetchTournaments, deleteTournament, getMyTournaments, getDMUnreadCount, SOCKET_URL } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { io } from 'socket.io-client'
 
 function Dashboard() {
   const { user, token, logout } = useAuth()
+  const location = useLocation()
   const [tournaments, setTournaments] = useState([])
   const [myTournaments, setMyTournaments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -19,7 +20,7 @@ function Dashboard() {
       getMyTournaments(token).then(setMyTournaments)
       getDMUnreadCount(token).then(d => setUnreadCount(d.count || 0))
     }
-  }, [token])
+  }, [token, location.pathname])
 
   useEffect(() => {
     if (!token || !user) return
@@ -30,6 +31,9 @@ function Dashboard() {
     })
     socketRef.current.on('dm:read', () => {
       getDMUnreadCount(token).then(d => setUnreadCount(d.count || 0))
+    })
+    socketRef.current.on('match:updated', () => {
+      if (token) getMyTournaments(token).then(setMyTournaments)
     })
     return () => { if (socketRef.current) { socketRef.current.emit('leave:dm', user.id); socketRef.current.disconnect() } }
   }, [token, user])
