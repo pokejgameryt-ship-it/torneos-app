@@ -146,6 +146,15 @@ export async function registerParticipant(tournamentId, name, flag, token) {
   return res.json();
 }
 
+export async function claimParticipant(tournamentId, participantId, token) {
+  const res = await fetch(`${API_BASE}/tournaments/${tournamentId}/claim`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ participant_id: participantId })
+  });
+  return res.json();
+}
+
 export async function nextMatch(tournamentId) {
   const res = await fetch(`${API_BASE}/tournaments/${tournamentId}/next-match`, { method: 'POST' });
   return res.json();

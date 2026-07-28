@@ -23,12 +23,14 @@ router.get('/my/registrations', (req, res) => {
     const user = db.prepare('SELECT nickname FROM users WHERE id = ?').get(decoded.id);
     const nickname = user ? user.nickname : '';
 
-    const orphans = db.prepare(
-      'SELECT id, tournament_id FROM participants WHERE tournament_id IN (SELECT tournament_id FROM participants WHERE (user_id = ? OR (user_id IS NULL AND LOWER(name) = LOWER(?)))) AND user_id IS NULL AND LOWER(name) = LOWER(?)'
-    ).all(decoded.id, nickname, nickname);
-    if (orphans.length > 0) {
-      const linkStmt = db.prepare('UPDATE participants SET user_id = ? WHERE id = ?');
-      for (const o of orphans) { linkStmt.run(decoded.id, o.id); }
+    if (nickname) {
+      const orphans = db.prepare(
+        'SELECT id FROM participants WHERE user_id IS NULL AND LOWER(name) = LOWER(?)'
+      ).all(nickname);
+      if (orphans.length > 0) {
+        const linkStmt = db.prepare('UPDATE participants SET user_id = ? WHERE id = ?');
+        for (const o of orphans) { linkStmt.run(decoded.id, o.id); }
+      }
     }
 
     const participations = db.prepare(`
@@ -390,11 +392,31 @@ router.post('/:id/register', (req, res) => {
   const { name, flag } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'El nombre es obligatorio' });
 
-  const count = db.prepare('SELECT COUNT(*) as count FROM participants WHERE tournament_id = ?').get(req.params.id);
-  if (count.count >= tournament.bracket_size) return res.status(400).json({ error: 'El torneo está lleno' });
+  let userId = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const { JWT_SECRET } = require('../middleware/auth');
+      const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      userId = decoded.id;
+    } catch {}
+  }
+  if (!userId) return res.status(401).json({ error: 'Debes iniciar sesión para inscribirte' });
+
+  const alreadyRegistered = db.prepare('SELECT id FROM participants WHERE tournament_id = ? AND user_id = ?').get(req.params.id, userId);
+  if (alreadyRegistered) return res.status(400).json({ error: 'Ya estás inscrito en este torneo' });
 
   const existing = db.prepare('SELECT * FROM participants WHERE tournament_id = ? AND LOWER(name) = LOWER(?)').get(req.params.id, name.trim());
+  if (existing && !existing.user_id) {
+    db.prepare('UPDATE participants SET user_id = ?, flag = COALESCE(?, flag) WHERE id = ?').run(userId, flag || null, existing.id);
+    const participant = db.prepare('SELECT * FROM participants WHERE id = ?').get(existing.id);
+    return res.status(200).json({ success: true, participant, remaining: tournament.bracket_size - (existing.seed || 0), linked: true });
+  }
   if (existing) return res.status(400).json({ error: 'Ya hay un participante con ese nombre' });
+
+  const count = db.prepare('SELECT COUNT(*) as count FROM participants WHERE tournament_id = ?').get(req.params.id);
+  if (count.count >= tournament.bracket_size) return res.status(400).json({ error: 'El torneo está lleno' });
 
   if (tournament.requirements) {
     try {
@@ -412,6 +434,15 @@ router.post('/:id/register', (req, res) => {
 
   const id = uuidv4();
   const seed = count.count + 1;
+  db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(id, req.params.id, name.trim(), seed, flag || '', userId);
+  const participant = db.prepare('SELECT * FROM participants WHERE id = ?').get(id);
+  res.status(201).json({ success: true, participant, remaining: tournament.bracket_size - seed });
+});
+
+router.post('/:id/claim', (req, res) => {
+  const db = getDb();
+  const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(req.params.id);
+  if (!tournament) return res.status(404).json({ error: 'Torneo no encontrado' });
 
   let userId = null;
   const authHeader = req.headers.authorization;
@@ -423,10 +454,21 @@ router.post('/:id/register', (req, res) => {
       userId = decoded.id;
     } catch {}
   }
+  if (!userId) return res.status(401).json({ error: 'Debes iniciar sesión' });
 
-  db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(id, req.params.id, name.trim(), seed, flag || '', userId);
-  const participant = db.prepare('SELECT * FROM participants WHERE id = ?').get(id);
-  res.status(201).json({ success: true, participant, remaining: tournament.bracket_size - seed });
+  const alreadyLinked = db.prepare('SELECT id FROM participants WHERE tournament_id = ? AND user_id = ?').get(req.params.id, userId);
+  if (alreadyLinked) return res.status(400).json({ error: 'Ya estás vinculado a un participante' });
+
+  const { participant_id } = req.body;
+  if (!participant_id) return res.status(400).json({ error: 'participant_id requerido' });
+
+  const participant = db.prepare('SELECT * FROM participants WHERE id = ? AND tournament_id = ?').get(participant_id, req.params.id);
+  if (!participant) return res.status(404).json({ error: 'Participante no encontrado' });
+  if (participant.user_id) return res.status(400).json({ error: 'Este participante ya está vinculado a otro usuario' });
+
+  db.prepare('UPDATE participants SET user_id = ? WHERE id = ?').run(userId, participant.id);
+  const updated = db.prepare('SELECT * FROM participants WHERE id = ?').get(participant.id);
+  res.json({ success: true, participant: updated });
 });
 
 router.get('/:id/register-info', (req, res) => {

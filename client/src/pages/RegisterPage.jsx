@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { io } from 'socket.io-client'
-import { getRegisterInfo, registerParticipant, fetchBracket, SOCKET_URL, API_BASE } from '../api'
+import { getRegisterInfo, registerParticipant, claimParticipant, fetchBracket, SOCKET_URL, API_BASE } from '../api'
 import { useAuth } from '../context/AuthContext'
 
 function RegisterPage() {
@@ -15,6 +15,7 @@ function RegisterPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [bracket, setBracket] = useState(null)
+  const [claiming, setClaiming] = useState(false)
   const socketRef = useRef(null)
 
   useEffect(() => { loadData() }, [id])
@@ -67,6 +68,22 @@ function RegisterPage() {
       setInfo(prev => ({ ...prev, registered: prev.registered + 1, remaining: prev.remaining - 1, participants: [...prev.participants, res.participant] }))
       setSubmitting(false)
     } catch { setError('Error al inscribirse'); setSubmitting(false) }
+  }
+
+  async function handleClaim(participantId) {
+    if (!token) { setError('Debes iniciar sesión'); return }
+    setClaiming(true)
+    setError('')
+    try {
+      const res = await claimParticipant(id, participantId, token)
+      if (res.error) { setError(res.error); setClaiming(false); return }
+      setInfo(prev => ({
+        ...prev,
+        participants: prev.participants.map(p => p.id === participantId ? { ...p, user_id: user.id } : p)
+      }))
+      setSuccess(true)
+    } catch { setError('Error al vincular'); }
+    setClaiming(false)
   }
 
   function formatDate(d, t, tz) {
@@ -139,7 +156,37 @@ function RegisterPage() {
           </div>
         )}
 
-        {isStarted && <div className="bg-dark-light rounded-xl border border-gray-700 p-6 mb-6 text-center"><p className="text-gray-400">Las inscripciones ya están cerradas — el torneo ha comenzado</p></div>}
+        {isStarted && (() => {
+          const unlinked = info.participants.filter(p => !p.user_id)
+          const myParticipant = info.participants.find(p => p.user_id === user?.id)
+          return (
+            <div className="bg-dark-light rounded-xl border border-gray-700 p-6 mb-6">
+              <p className="text-gray-400 text-center mb-4">Las inscripciones ya están cerradas — el torneo ha comenzado</p>
+              {token && !myParticipant && unlinked.length > 0 && (
+                <>
+                  <p className="text-gray-300 text-sm mb-3 text-center">¿Eres uno de estos participantes? Vincula tu cuenta:</p>
+                  {error && <div className="mb-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"><p className="text-red-400 text-sm">{error}</p></div>}
+                  {success && myParticipant && <div className="mb-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg"><p className="text-green-400 text-sm font-semibold">✓ Cuenta vinculada correctamente</p></div>}
+                  <div className="space-y-2">
+                    {unlinked.map(p => (
+                      <div key={p.id} className="flex items-center gap-3 bg-dark rounded-lg px-4 py-3">
+                        {p.flag && <span className="text-xl" style={{ fontFamily: "'Segoe UI Emoji', sans-serif" }}>{p.flag}</span>}
+                        <span className="text-gray-300 flex-1">{p.name}</span>
+                        <button onClick={() => handleClaim(p.id)} disabled={claiming} className="btn-primary text-sm px-4 py-1.5">
+                          {claiming ? '...' : 'Vincular'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {token && myParticipant && (
+                <div className="text-center"><p className="text-green-400 text-sm font-semibold">✓ Tu cuenta ya está vinculada: {myParticipant.name}</p></div>
+              )}
+              {!token && <div className="text-center"><p className="text-yellow-400 text-sm"><Link to="/login" className="underline font-bold">Inicia sesión</Link> para vincular tu cuenta.</p></div>}
+            </div>
+          )
+        })()}
         {isFull && !isStarted && <div className="bg-dark-light rounded-xl border border-red-500/30 p-6 mb-6 text-center"><p className="text-red-400 font-semibold">Torneo completo — no quedan plazas</p></div>}
 
         {info.participants.length > 0 && (
