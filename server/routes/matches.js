@@ -10,7 +10,9 @@ router.get('/:id', (req, res) => {
   const db = getDb();
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partido no encontrado' });
-  res.json(match);
+  const p1 = match.player1_id ? db.prepare('SELECT * FROM participants WHERE id = ?').get(match.player1_id) : null;
+  const p2 = match.player2_id ? db.prepare('SELECT * FROM participants WHERE id = ?').get(match.player2_id) : null;
+  res.json({ ...match, player1: p1, player2: p2 });
 });
 
 router.put('/:id/character', authRequired, (req, res) => {
