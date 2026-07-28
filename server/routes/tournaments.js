@@ -86,6 +86,9 @@ router.post('/:id/participants', (req, res) => {
   if (!tournament) return res.status(404).json({ error: 'Torneo no encontrado' });
 
   const existing = db.prepare('SELECT COUNT(*) as count FROM participants WHERE tournament_id = ?').get(req.params.id);
+  if (existing.count >= tournament.bracket_size) {
+    return res.status(400).json({ error: 'El torneo está lleno (' + tournament.bracket_size + ' participantes máximos)' });
+  }
 
   const id = uuidv4();
   const seed = existing.count + 1;
@@ -103,6 +106,10 @@ router.post('/:id/participants/bulk', (req, res) => {
   if (!tournament) return res.status(404).json({ error: 'Torneo no encontrado' });
 
   const existing = db.prepare('SELECT COUNT(*) as count FROM participants WHERE tournament_id = ?').get(req.params.id);
+  const requestedCount = Array.isArray(req.body.names) ? req.body.names.length : 0;
+  if (existing.count + requestedCount > tournament.bracket_size) {
+    return res.status(400).json({ error: `No caben ${requestedCount} participantes. Quedan ${tournament.bracket_size - existing.count} huecos de ${tournament.bracket_size}` });
+  }
 
   const insertParticipant = db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag) VALUES (?, ?, ?, ?, ?)');
   const participants = [];
@@ -217,6 +224,7 @@ router.post('/:id/next-match', (req, res) => {
 
     if (!anyPending) {
       db.prepare("UPDATE tournaments SET status = 'completed' WHERE id = ?").run(req.params.id);
+      db.prepare('DELETE FROM chat_messages WHERE match_id IN (SELECT id FROM matches WHERE tournament_id = ?)').run(req.params.id);
       return res.json({ success: true, finished: true, message: 'Torneo finalizado' });
     }
 

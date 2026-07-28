@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDb } = require('../db');
 const { advanceWinner } = require('../logic/bracket');
+const { authRequired } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -107,6 +108,7 @@ router.put('/:id/result', (req, res) => {
 
     if ((match.is_reset || isWBChampion) && match.status === 'pending') {
       db.prepare("UPDATE tournaments SET status = 'completed' WHERE id = ?").run(match.tournament_id);
+      db.prepare('DELETE FROM chat_messages WHERE match_id IN (SELECT id FROM matches WHERE tournament_id = ?)').run(match.tournament_id);
     }
   }
 
@@ -271,6 +273,7 @@ router.put('/:id/score', (req, res) => {
 
       if ((match.is_reset || isWBChampion) && match.status !== 'completed') {
         db.prepare("UPDATE tournaments SET status = 'completed' WHERE id = ?").run(match.tournament_id);
+        db.prepare('DELETE FROM chat_messages WHERE match_id IN (SELECT id FROM matches WHERE tournament_id = ?)').run(match.tournament_id);
       }
     }
   } else {
@@ -351,7 +354,7 @@ router.get('/:id/stage-pick', (req, res) => {
   });
 });
 
-router.post('/:id/stage-pick', (req, res) => {
+router.post('/:id/stage-pick', authRequired, (req, res) => {
   const { stageId, action } = req.body;
   if (!stageId) return res.status(400).json({ error: 'stageId requerido' });
 
@@ -359,12 +362,16 @@ router.post('/:id/stage-pick', (req, res) => {
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
 
+  if (match.player1_id !== req.user.id && match.player2_id !== req.user.id) {
+    return res.status(403).json({ error: 'No eres participante de esta partida' });
+  }
+
   const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(match.tournament_id);
   const { initMatchStageMode, performStageAction, getStageState, getAvailableStages, getCurrentPhase, STAGES } = require('../logic/stage-pick');
 
-  initMatchStageMode(db, req.params.id, tournament.allow_gentleman ? 'dsr' : 'dsr');
+  initMatchStageMode(db, req.params.id, 'dsr');
 
-  const result = performStageAction(db, req.params.id, req.user ? req.user.id : null, stageId, action || 'pick');
+  const result = performStageAction(db, req.params.id, req.user.id, stageId, action || 'pick');
   if (result.error) return res.status(400).json(result);
 
   const { mode, picks } = getStageState(db, req.params.id);
@@ -374,12 +381,16 @@ router.post('/:id/stage-pick', (req, res) => {
   res.json({ success: true, picks: result, available: available.map(s => s.id), currentPhase, stages: STAGES });
 });
 
-router.post('/:id/stage-pick/gentleman', (req, res) => {
+router.post('/:id/stage-pick/gentleman', authRequired, (req, res) => {
   const { agreed } = req.body;
 
   const db = getDb();
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
+
+  if (match.player1_id !== req.user.id && match.player2_id !== req.user.id) {
+    return res.status(403).json({ error: 'No eres participante de esta partida' });
+  }
 
   const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(match.tournament_id);
   if (!tournament.allow_gentleman) return res.status(400).json({ error: 'Gentleman no habilitado en este torneo' });
@@ -387,7 +398,7 @@ router.post('/:id/stage-pick/gentleman', (req, res) => {
   const { initMatchStageMode, setGentleman, STAGES } = require('../logic/stage-pick');
   initMatchStageMode(db, req.params.id, 'gentleman');
 
-  const result = setGentleman(db, req.params.id, req.user ? req.user.id : null, agreed);
+  const result = setGentleman(db, req.params.id, req.user.id, agreed);
   if (result.error) return res.status(400).json(result);
 
   const io = req.app.get('io');

@@ -25,22 +25,29 @@ function getAvailableStages(picks, mode) {
   return STAGES.filter(s => !banned.includes(s.id));
 }
 
+function getLoserId(match) {
+  if (!match.winner_id) return null;
+  return match.winner_id === match.player1_id ? match.player2_id : match.player1_id;
+}
+
 function getCurrentPhase(picks, match, mode) {
   if (mode === 'gentleman') return { phase: 'gentleman', currentTurn: null };
 
-  const isInitial = picks.length === 0 || (picks.length <= 4 && picks.every(p => p.phase.startsWith('initial')));
   const phaseCount = { initial_ban: 0, initial_pick: 0, counterpick_ban: 0, counterpick_pick: 0 };
   picks.forEach(p => phaseCount[p.phase] = (phaseCount[p.phase] || 0) + 1);
 
-  if (isInitial) {
-    if (phaseCount.initial_ban === 0) return { phase: 'initial_ban', currentTurn: match.player1_id, banNumber: 1 };
-    if (phaseCount.initial_ban === 1) return { phase: 'initial_ban', currentTurn: match.player2_id, banNumber: 2 };
-    if (phaseCount.initial_pick === 0) return { phase: 'initial_pick', currentTurn: match.player2_id };
-    if (phaseCount.initial_ban === 2) return { phase: 'initial_ban', currentTurn: match.player1_id, banNumber: 3 };
+  const totalInitial = phaseCount.initial_ban + phaseCount.initial_pick;
+  if (totalInitial < 3) {
+    if (totalInitial === 0) return { phase: 'initial_ban', currentTurn: match.player1_id, banNumber: 1 };
+    if (totalInitial === 1) return { phase: 'initial_ban', currentTurn: match.player2_id, banNumber: 2 };
+    return { phase: 'initial_pick', currentTurn: match.player2_id };
   }
 
-  if (phaseCount.counterpick_ban === 0) return { phase: 'counterpick_ban', currentTurn: match.winner_id };
-  return { phase: 'counterpick_pick', currentTurn: match.loser_id || match.player1_id };
+  const loserId = getLoserId(match);
+  if (phaseCount.counterpick_ban <= phaseCount.counterpick_pick) {
+    return { phase: 'counterpick_ban', currentTurn: match.winner_id };
+  }
+  return { phase: 'counterpick_pick', currentTurn: loserId || match.player1_id };
 }
 
 function initMatchStageMode(db, matchId, mode) {

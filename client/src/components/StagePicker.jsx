@@ -31,7 +31,8 @@ export default function StagePicker({ matchId, allowGentleman, onUpdate }) {
   useEffect(() => { load(); }, [matchId]);
 
   const bothAgreed = data?.agreed_by_p1 && data?.agreed_by_p2;
-  const isGentleman = data?.mode === 'gentleman' || bothAgreed;
+  const gentlemanProposed = data?.mode === 'gentleman';
+  const isGentleman = bothAgreed;
 
   const handleGentleman = async (agreed) => {
     await fetch(`${API_BASE}/matches/${matchId}/stage-pick/gentleman`, {
@@ -44,10 +45,12 @@ export default function StagePicker({ matchId, allowGentleman, onUpdate }) {
   };
 
   const handleStagePick = async (stageId) => {
+    const phase = data?.currentPhase;
+    const action = (phase?.phase === 'initial_ban' || phase?.phase === 'counterpick_ban') ? 'ban' : 'pick';
     await fetch(`${API_BASE}/matches/${matchId}/stage-pick`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ stageId, action: 'pick' })
+      body: JSON.stringify({ stageId, action })
     });
     load();
     onUpdate?.();
@@ -60,10 +63,10 @@ export default function StagePicker({ matchId, allowGentleman, onUpdate }) {
     if (isGentleman) return 'Gentleman\'s — Eligan donde jugar';
     const cp = data.currentPhase;
     if (!cp) return '';
-    if (cp.phase === 'initial_ban') return `Ban ${cp.banNumber} — ${cp.currentTurn === user?.id ? 'Tu turno' : 'Esperando...'}`;
-    if (cp.phase === 'initial_pick') return `Pick — ${cp.currentTurn === user?.id ? 'Tu turno' : 'Esperando...'}`;
-    if (cp.phase === 'counterpick_ban') return `Counterpick Ban — ${cp.currentTurn === user?.id ? 'Tu turno' : 'Esperando...'}`;
-    if (cp.phase === 'counterpick_pick') return `Counterpick Pick — ${cp.currentTurn === user?.id ? 'Tu turno' : 'Esperando...'}`;
+    if (cp.phase === 'initial_ban') return `${cp.currentTurn === user?.id ? 'Tu turno: Banea 1 escenario' : 'Esperando baneo...'}`;
+    if (cp.phase === 'initial_pick') return `${cp.currentTurn === user?.id ? 'Tu turno: Elige 1 escenario' : 'Esperando elección...'}`;
+    if (cp.phase === 'counterpick_ban') return `${cp.currentTurn === user?.id ? 'Tu turno: Banea 1 escenario (Counterpick)' : 'Esperando baneo...'}`;
+    if (cp.phase === 'counterpick_pick') return `${cp.currentTurn === user?.id ? 'Tu turno: Elige 1 escenario (Counterpick)' : 'Esperando elección...'}`;
     return '';
   };
 
@@ -74,11 +77,18 @@ export default function StagePicker({ matchId, allowGentleman, onUpdate }) {
         <span className="text-xs text-gray-400">{getPhaseLabel()}</span>
       </div>
 
-      {allowGentleman && !isGentleman && (
+      {allowGentleman && !gentlemanProposed && (
         <button onClick={() => handleGentleman(true)}
           className="w-full mb-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-xs py-2 rounded-lg hover:bg-yellow-500/20 transition">
           ☐ Proponer Gentleman's Agreement
         </button>
+      )}
+
+      {gentlemanProposed && !isGentleman && (
+        <div className="mb-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-xs py-2 px-3 rounded-lg flex justify-between items-center">
+          <span>⏳ Gentleman propuesto — Esperando confirmación del rival</span>
+          <button onClick={() => handleGentleman(false)} className="text-red-400 hover:text-red-300 ml-2">Rechazar</button>
+        </div>
       )}
 
       {isGentleman && (
@@ -92,14 +102,17 @@ export default function StagePicker({ matchId, allowGentleman, onUpdate }) {
           const isAvailable = data.available?.includes(stage.id);
           const isPicked = data.picks?.some(p => p.stage === stage.id && p.action === 'pick');
           const isBanned = data.picks?.some(p => p.stage === stage.id && p.action === 'ban');
+          const phase = data?.currentPhase;
+          const isBanPhase = phase?.phase === 'initial_ban' || phase?.phase === 'counterpick_ban';
+          const isMyTurn = phase?.currentTurn === user?.id;
 
           return (
-            <button key={stage.id} onClick={() => isAvailable && handleStagePick(stage.id)}
-              disabled={!isAvailable}
+            <button key={stage.id} onClick={() => isAvailable && isMyTurn && handleStagePick(stage.id)}
+              disabled={!isAvailable || !isMyTurn}
               className={`relative rounded-lg overflow-hidden border-2 transition ${
                 isPicked ? 'border-green-500 ring-2 ring-green-500/50' :
                 isBanned ? 'border-red-500/50 opacity-40' :
-                isAvailable ? 'border-gray-600 hover:border-primary cursor-pointer' :
+                isAvailable && isMyTurn ? (isBanPhase ? 'border-red-400 hover:border-red-300 cursor-pointer' : 'border-green-400 hover:border-green-300 cursor-pointer') :
                 'border-gray-700 opacity-30'
               }`}>
               <img src={STAGE_IMAGES[stage.id]} alt={stage.name}

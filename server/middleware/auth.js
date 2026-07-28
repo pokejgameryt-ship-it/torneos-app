@@ -20,7 +20,6 @@ function authOptional(req, res, next) {
   const header = req.headers.authorization;
   if (header && header.startsWith('Bearer ')) {
     try {
-      req.user = jwt.sign(jwt.verify(header.split(' ')[1], JWT_SECRET), JWT_SECRET);
       req.user = jwt.verify(header.split(' ')[1], JWT_SECRET);
     } catch {}
   }
