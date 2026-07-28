@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../db');
 const { authRequired } = require('../middleware/auth');
+const { isMatchParticipant, isTournamentCreator } = require('../middleware/auth-helpers');
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ router.get('/:matchId/chat', authRequired, (req, res) => {
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.matchId);
   if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
 
-  if (match.player1_id !== req.user.id && match.player2_id !== req.user.id) {
+  if (!isMatchParticipant(req.params.matchId, req.user.id) && !isTournamentCreator(match.tournament_id, req.user.id)) {
     return res.status(403).json({ error: 'No eres participante de esta partida' });
   }
 
@@ -35,7 +36,7 @@ router.post('/:matchId/chat', authRequired, (req, res) => {
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.matchId);
   if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
 
-  if (match.player1_id !== req.user.id && match.player2_id !== req.user.id) {
+  if (!isMatchParticipant(req.params.matchId, req.user.id)) {
     return res.status(403).json({ error: 'No eres participante de esta partida' });
   }
 

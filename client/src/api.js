@@ -90,24 +90,27 @@ export async function fetchBracket(tournamentId) {
   return res.json();
 }
 
-export async function setMatchResult(matchId, winnerId, player1Score, player2Score) {
+export async function setMatchResult(matchId, winnerId, player1Score, player2Score, token) {
   const res = await fetch(`${API_BASE}/matches/${matchId}/result`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify({ winner_id: winnerId, player1_score: player1Score, player2_score: player2Score })
   });
   return res.json();
 }
 
-export async function undoMatchResult(matchId) {
-  const res = await fetch(`${API_BASE}/matches/${matchId}/undo`, { method: 'PUT' });
+export async function undoMatchResult(matchId, token) {
+  const res = await fetch(`${API_BASE}/matches/${matchId}/undo`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) }
+  });
   return res.json();
 }
 
-export async function incrementScore(matchId, player) {
+export async function incrementScore(matchId, player, token) {
   const res = await fetch(`${API_BASE}/matches/${matchId}/score`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify({ player })
   });
   return res.json();

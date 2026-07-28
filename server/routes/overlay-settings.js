@@ -1,5 +1,7 @@
 const express = require('express');
 const { getDb } = require('../db');
+const { authRequired } = require('../middleware/auth');
+const { isTournamentCreator } = require('../middleware/auth-helpers');
 
 const router = express.Router();
 
@@ -76,8 +78,11 @@ router.get('/:tournamentId', (req, res) => {
   res.json(row);
 });
 
-router.put('/:tournamentId', (req, res) => {
+router.put('/:tournamentId', authRequired, (req, res) => {
   const db = getDb();
+  if (!isTournamentCreator(req.params.tournamentId, req.user.id)) {
+    return res.status(403).json({ error: 'Solo el creador puede modificar los ajustes del overlay' });
+  }
   const existing = ensureRow(db, req.params.tournamentId);
   patchRow(db, req.params.tournamentId, req.body, existing);
 
@@ -91,8 +96,11 @@ router.put('/:tournamentId', (req, res) => {
   res.json({ success: true });
 });
 
-router.post('/:tournamentId/reset', (req, res) => {
+router.post('/:tournamentId/reset', authRequired, (req, res) => {
   const db = getDb();
+  if (!isTournamentCreator(req.params.tournamentId, req.user.id)) {
+    return res.status(403).json({ error: 'Solo el creador puede resetear el overlay' });
+  }
   ensureRow(db, req.params.tournamentId);
 
   const vals = {};

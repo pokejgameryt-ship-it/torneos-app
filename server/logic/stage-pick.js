@@ -65,20 +65,19 @@ function setGentleman(db, matchId, userId, agreed) {
   if (!mode) return { error: 'Modo de stage no encontrado' };
   if (mode.mode !== 'gentleman' && !agreed) return { error: 'Gentleman no está habilitado para esta partida' };
 
-  if (userId === mode.agreed_by_p1 || userId === mode.agreed_by_p2) return { mode };
+  const match = db.prepare('SELECT player1_id, player2_id FROM matches WHERE id = ?').get(matchId);
+  const myParticipant = db.prepare('SELECT id FROM participants WHERE id IN (?, ?) AND user_id = ?').get(match.player1_id, match.player2_id, userId);
+  if (!myParticipant) return { error: 'No eres participante de esta partida' };
+
+  const myPlayerNum = myParticipant.id === match.player1_id ? 1 : 2;
+  const myAgreedField = myPlayerNum === 1 ? 'agreed_by_p1' : 'agreed_by_p2';
+
+  if (mode[myAgreedField] === userId) return { mode };
 
   if (agreed) {
-    if (!mode.agreed_by_p1) {
-      db.prepare('UPDATE match_stage_mode SET agreed_by_p1 = 1 WHERE match_id = ?').run(matchId);
-    } else {
-      db.prepare('UPDATE match_stage_mode SET agreed_by_p2 = 1 WHERE match_id = ?').run(matchId);
-    }
+    db.prepare(`UPDATE match_stage_mode SET ${myAgreedField} = ? WHERE match_id = ?`).run(userId, matchId);
   } else {
-    if (!mode.agreed_by_p1) {
-      db.prepare('UPDATE match_stage_mode SET agreed_by_p2 = 0 WHERE match_id = ?').run(matchId);
-    } else {
-      db.prepare('UPDATE match_stage_mode SET agreed_by_p1 = 0 WHERE match_id = ?').run(matchId);
-    }
+    db.prepare(`UPDATE match_stage_mode SET ${myAgreedField} = 0 WHERE match_id = ?`).run(matchId);
   }
 
   return db.prepare('SELECT * FROM match_stage_mode WHERE match_id = ?').get(matchId);
@@ -103,6 +102,16 @@ function performStageAction(db, matchId, userId, stageId, action) {
 
   const phaseInfo = getCurrentPhase(picks, match, mode.mode);
   const phase = mode.mode === 'gentleman' ? 'gentleman' : phaseInfo.phase;
+
+  const myParticipant = db.prepare(`
+    SELECT id FROM participants WHERE id IN (?, ?) AND user_id = ?
+  `).get(match.player1_id, match.player2_id, userId);
+  if (!myParticipant) return { error: 'No eres participante de esta partida' };
+
+  if (phaseInfo.currentTurn && phaseInfo.currentTurn !== myParticipant.id && mode.mode !== 'gentleman') {
+    return { error: 'No es tu turno para elegir escenario' };
+  }
+
   const actualAction = mode.mode === 'gentleman' ? 'pick' : action;
 
   const id = require('uuid').v4();

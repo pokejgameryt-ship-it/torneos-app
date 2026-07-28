@@ -149,6 +149,7 @@ function Dashboard() {
                       const isCreator = user?.id === t.creator_id
                       const isPending = t.status === 'pending'
                       const isActive = t.status === 'active'
+                      const isCompleted = t.status === 'completed'
                       const myMatch = t.my_current_match
 
                       return (
@@ -171,7 +172,12 @@ function Dashboard() {
                               ⏳ Esperando set...
                             </span>
                           )}
-                          <Link to={`/view/${t.id}`} className="btn-secondary flex-1 text-center text-sm" target="_blank">Ver Bracket</Link>
+                          {isCompleted && (
+                            <span className="flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold bg-blue-600/20 text-blue-400">
+                              🏁 Finalizado
+                            </span>
+                          )}
+                          <Link to={`/tournament/${t.id}/play`} className="btn-secondary flex-1 text-center text-sm">Mi Torneo</Link>
                         </>
                       )
                     })()}
@@ -222,6 +228,7 @@ function Dashboard() {
                     const isParticipant = !!myPart
                     const isPending = tournament.status === 'pending'
                     const isActive = tournament.status === 'active'
+                    const isCompleted = tournament.status === 'completed'
                     const myMatch = myPart?.my_current_match
 
                     return (
@@ -230,8 +237,14 @@ function Dashboard() {
                           <Link to={`/tournament/${tournament.id}`} className="btn-primary flex-1 text-center text-sm">Gestionar</Link>
                         )}
 
-                        {isPending && !isParticipant && !isCreator && (
+                        {!isCreator && isPending && !isParticipant && (
                           <Link to={`/register/${tournament.id}`} className="btn-primary flex-1 text-center text-sm">Inscribirse</Link>
+                        )}
+
+                        {!isCreator && isPending && isParticipant && (
+                          <span className="flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold bg-blue-600/20 text-blue-400">
+                            ✓ Inscrito
+                          </span>
                         )}
 
                         {isActive && isParticipant && myMatch && (
@@ -246,7 +259,13 @@ function Dashboard() {
                           </span>
                         )}
 
-                        <Link to={`/view/${tournament.id}`} className="btn-secondary flex-1 text-center text-sm" target="_blank">Ver Bracket</Link>
+                        {isCompleted && isParticipant && (
+                          <span className="flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold bg-blue-600/20 text-blue-400">
+                            🏁 Finalizado
+                          </span>
+                        )}
+
+                        <Link to={`/tournament/${tournament.id}/play`} className="btn-secondary flex-1 text-center text-sm">Mi Torneo</Link>
 
                         {isCreator && (
                           <button onClick={() => handleDelete(tournament.id)} className="btn-danger text-sm px-3">🗑️</button>

@@ -1,6 +1,8 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../db');
+const { authRequired } = require('../middleware/auth');
+const { isTournamentCreator } = require('../middleware/auth-helpers');
 
 const router = express.Router();
 
@@ -173,25 +175,19 @@ router.delete('/:id', (req, res) => {
   res.json({ success: true });
 });
 
-router.post('/:id/participants', (req, res) => {
+router.post('/:id/participants', authRequired, (req, res) => {
   const db = getDb();
   const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(req.params.id);
   if (!tournament) return res.status(404).json({ error: 'Torneo no encontrado' });
-
-  let userId = null;
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    try {
-      const jwt = require('jsonwebtoken');
-      const { JWT_SECRET } = require('../middleware/auth');
-      const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
-      userId = decoded.id;
-    } catch {}
-  }
-  if (!userId) return res.status(401).json({ error: 'Debes iniciar sesión' });
+  if (tournament.status !== 'pending') return res.status(400).json({ error: 'El torneo ya ha comenzado' });
 
   const { user_id } = req.body;
-  const targetUserId = user_id || userId;
+  const targetUserId = user_id || req.user.id;
+
+  const isCreator = isTournamentCreator(req.params.id, req.user.id);
+  if (user_id && user_id !== req.user.id && !isCreator) {
+    return res.status(403).json({ error: 'Solo el creador puede añadir otros usuarios' });
+  }
 
   const targetUser = db.prepare('SELECT id, nickname, flag FROM users WHERE id = ?').get(targetUserId);
   if (!targetUser) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -213,10 +209,14 @@ router.post('/:id/participants', (req, res) => {
   res.status(201).json(participant);
 });
 
-router.post('/:id/participants/bulk', (req, res) => {
+router.post('/:id/participants/bulk', authRequired, (req, res) => {
   const db = getDb();
   const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(req.params.id);
   if (!tournament) return res.status(404).json({ error: 'Torneo no encontrado' });
+  if (!isTournamentCreator(req.params.id, req.user.id)) {
+    return res.status(403).json({ error: 'Solo el creador puede añadir participantes' });
+  }
+  if (tournament.status !== 'pending') return res.status(400).json({ error: 'El torneo ya ha comenzado' });
 
   const existing = db.prepare('SELECT COUNT(*) as count FROM participants WHERE tournament_id = ?').get(req.params.id);
   const requestedCount = Array.isArray(req.body.user_ids) ? req.body.user_ids.length : 0;
@@ -245,17 +245,25 @@ router.post('/:id/participants/bulk', (req, res) => {
   res.status(201).json(participants);
 });
 
-router.delete('/:id/participants/:pid', (req, res) => {
+router.delete('/:id/participants/:pid', authRequired, (req, res) => {
   const db = getDb();
+  if (!isTournamentCreator(req.params.id, req.user.id)) {
+    return res.status(403).json({ error: 'Solo el creador puede eliminar participantes' });
+  }
+  const tournament = db.prepare('SELECT status FROM tournaments WHERE id = ?').get(req.params.id);
+  if (tournament && tournament.status !== 'pending') return res.status(400).json({ error: 'No se pueden eliminar participantes una vez iniciado el torneo' });
   db.prepare('DELETE FROM participants WHERE id = ? AND tournament_id = ?').run(req.params.pid, req.params.id);
   res.json({ success: true });
 });
 
-router.put('/:id/participants/:pid', (req, res) => {
+router.put('/:id/participants/:pid', authRequired, (req, res) => {
   const db = getDb();
   const { name, flag } = req.body;
   const existing = db.prepare('SELECT * FROM participants WHERE id = ? AND tournament_id = ?').get(req.params.pid, req.params.id);
   if (!existing) return res.status(404).json({ error: 'Participante no encontrado' });
+  if (!isTournamentCreator(req.params.id, req.user.id)) {
+    return res.status(403).json({ error: 'Solo el creador puede editar participantes' });
+  }
 
   db.prepare('UPDATE participants SET name = ?, flag = ? WHERE id = ?').run(
     name || existing.name,
@@ -267,10 +275,14 @@ router.put('/:id/participants/:pid', (req, res) => {
   res.json(participant);
 });
 
-router.post('/:id/generate-bracket', (req, res) => {
+router.post('/:id/generate-bracket', authRequired, (req, res) => {
   const db = getDb();
   const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(req.params.id);
   if (!tournament) return res.status(404).json({ error: 'Torneo no encontrado' });
+  if (!isTournamentCreator(req.params.id, req.user.id)) {
+    return res.status(403).json({ error: 'Solo el creador puede generar el bracket' });
+  }
+  if (tournament.status !== 'pending') return res.status(400).json({ error: 'El torneo ya ha comenzado' });
 
   const participants = db.prepare('SELECT * FROM participants WHERE tournament_id = ? ORDER BY seed').all(req.params.id);
   if (participants.length < 2) return res.status(400).json({ error: 'Se necesitan al menos 2 participantes' });
@@ -312,10 +324,13 @@ router.post('/:id/generate-bracket', (req, res) => {
   res.json({ success: true, metadata: bracket.metadata });
 });
 
-router.post('/:id/next-match', (req, res) => {
+router.post('/:id/next-match', authRequired, (req, res) => {
   const db = getDb();
   const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(req.params.id);
   if (!tournament) return res.status(404).json({ error: 'Torneo no encontrado' });
+  if (!isTournamentCreator(req.params.id, req.user.id)) {
+    return res.status(403).json({ error: 'Solo el creador puede avanzar a la siguiente ronda' });
+  }
 
   const currentOrder = tournament.current_match_order || 0;
 
@@ -368,8 +383,13 @@ router.post('/:id/next-match', (req, res) => {
   res.json({ success: true, match_order: nextMatch.match_order, match_id: nextMatch.id });
 });
 
-router.post('/:id/randomize', (req, res) => {
+router.post('/:id/randomize', authRequired, (req, res) => {
   const db = getDb();
+  const tournament = db.prepare('SELECT id FROM tournaments WHERE id = ?').get(req.params.id);
+  if (!tournament) return res.status(404).json({ error: 'Torneo no encontrado' });
+  if (!isTournamentCreator(req.params.id, req.user.id)) {
+    return res.status(403).json({ error: 'Solo el creador puede randomizar' });
+  }
   const participants = db.prepare('SELECT * FROM participants WHERE tournament_id = ?').all(req.params.id);
 
   const shuffled = [...participants].sort(() => Math.random() - 0.5);

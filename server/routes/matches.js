@@ -3,6 +3,7 @@ const { getDb } = require('../db');
 const { advanceWinner } = require('../logic/bracket');
 const { resetStagePicks } = require('../logic/stage-pick');
 const { authRequired } = require('../middleware/auth');
+const { isMatchParticipant, getMatchPlayerNum, isTournamentCreator } = require('../middleware/auth-helpers');
 
 const router = express.Router();
 
@@ -21,7 +22,14 @@ router.put('/:id/character', authRequired, (req, res) => {
   const db = getDb();
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
-  const col = player === 2 ? 'character2' : 'character1';
+  if (!isMatchParticipant(req.params.id, req.user.id)) {
+    return res.status(403).json({ error: 'No eres participante' });
+  }
+  const myPlayerNum = getMatchPlayerNum(req.params.id, req.user.id);
+  if (player && player !== myPlayerNum) {
+    return res.status(400).json({ error: 'No puedes seleccionar el personaje del rival' });
+  }
+  const col = myPlayerNum === 2 ? 'character2' : 'character1';
   db.prepare(`UPDATE matches SET ${col} = ? WHERE id = ?`).run(character, req.params.id);
   const io = req.app.get('io');
   if (io) io.to(`match:${req.params.id}`).emit('stage:updated', { matchId: req.params.id });
@@ -29,19 +37,32 @@ router.put('/:id/character', authRequired, (req, res) => {
   res.json({ success: true, match: updated });
 });
 
-router.put('/:id/result', (req, res) => {
+router.put('/:id/result', authRequired, (req, res) => {
   const db = getDb();
   const { winner_id, player1_score, player2_score } = req.body;
 
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partido no encontrado' });
   if (match.status === 'bye') return res.status(400).json({ error: 'No se puede cambiar el resultado de un bye' });
+  if (match.status === 'completed') return res.status(400).json({ error: 'El partido ya está finalizado' });
+  if (!match.player1_id || !match.player2_id) return res.status(400).json({ error: 'El partido aún no tiene ambos jugadores' });
+
+  if (!isMatchParticipant(req.params.id, req.user.id) && !isTournamentCreator(match.tournament_id, req.user.id)) {
+    return res.status(403).json({ error: 'No tienes permiso para reportar este partido' });
+  }
+
+  if (player1_score === undefined || player2_score === undefined) {
+    return res.status(400).json({ error: 'player1_score y player2_score requeridos' });
+  }
+  if (player1_score === player2_score) {
+    return res.status(400).json({ error: 'Los scores no pueden ser iguales' });
+  }
 
   const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(match.tournament_id);
 
-  let actualWinnerId = winner_id;
-  if (player1_score !== undefined && player2_score !== undefined) {
-    actualWinnerId = player1_score > player2_score ? match.player1_id : match.player2_id;
+  let actualWinnerId = player1_score > player2_score ? match.player1_id : match.player2_id;
+  if (actualWinnerId !== match.player1_id && actualWinnerId !== match.player2_id) {
+    return res.status(400).json({ error: 'Ganador inválido' });
   }
 
   db.prepare(`
@@ -140,10 +161,14 @@ router.put('/:id/result', (req, res) => {
   res.json({ success: true });
 });
 
-router.put('/:id/undo', (req, res) => {
+router.put('/:id/undo', authRequired, (req, res) => {
   const db = getDb();
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partido no encontrado' });
+  if (match.status !== 'completed') return res.status(400).json({ error: 'Solo se pueden deshacer partidos completados' });
+  if (!isTournamentCreator(match.tournament_id, req.user.id)) {
+    return res.status(403).json({ error: 'Solo el creador del torneo puede deshacer resultados' });
+  }
 
   const previousWinner = match.winner_id;
 
@@ -179,20 +204,21 @@ const matchVotes = {};
 
 router.post('/:id/vote', authRequired, (req, res) => {
   const { winner } = req.body;
-  if (!winner || winner !== 1 && winner !== 2) return res.status(400).json({ error: 'winner inválido' });
+  if (!winner || (winner !== 1 && winner !== 2)) return res.status(400).json({ error: 'winner inválido' });
 
   const db = getDb();
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
   if (match.status === 'completed') return res.status(400).json({ error: 'Partida ya finalizada' });
-  if (match.player1_id !== req.user.id && match.player2_id !== req.user.id) {
+  if (!isMatchParticipant(req.params.id, req.user.id)) {
     return res.status(403).json({ error: 'No eres participante' });
   }
 
   const matchId = req.params.id;
   if (!matchVotes[matchId]) matchVotes[matchId] = {};
 
-  const playerNum = match.player1_id === req.user.id ? 1 : 2;
+  const playerNum = getMatchPlayerNum(req.params.id, req.user.id);
+  if (playerNum === 0) return res.status(403).json({ error: 'No eres participante' });
   matchVotes[matchId][playerNum] = winner;
 
   const vote1 = matchVotes[matchId][1];
@@ -301,7 +327,7 @@ router.post('/:id/vote', authRequired, (req, res) => {
   res.json({ success: true, agreed: false });
 });
 
-router.put('/:id/score', (req, res) => {
+router.put('/:id/score', authRequired, (req, res) => {
   const db = getDb();
   const { player } = req.body;
 
@@ -309,6 +335,9 @@ router.put('/:id/score', (req, res) => {
   if (!match) return res.status(404).json({ error: 'Partido no encontrado' });
   if (match.status === 'bye') return res.status(400).json({ error: 'No se puede modificar un bye' });
   if (!match.player1_id || !match.player2_id) return res.status(400).json({ error: 'El partido aún no tiene ambos jugadores' });
+  if (!isTournamentCreator(match.tournament_id, req.user.id)) {
+    return res.status(403).json({ error: 'Solo el creador puede modificar el score manualmente' });
+  }
 
   const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(match.tournament_id);
   const formats = db.prepare('SELECT * FROM tournament_formats WHERE tournament_id = ?').all(match.tournament_id);
@@ -442,7 +471,7 @@ router.put('/:id/score', (req, res) => {
   });
 });
 
-router.put('/:id/team-paste', (req, res) => {
+router.put('/:id/team-paste', authRequired, (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'URL requerida' });
 
@@ -459,6 +488,9 @@ router.put('/:id/team-paste', (req, res) => {
   const db = getDb();
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
+  if (!isMatchParticipant(req.params.id, req.user.id)) {
+    return res.status(403).json({ error: 'No eres participante' });
+  }
 
   db.prepare('UPDATE matches SET team_paste_url = ? WHERE id = ?').run(url, req.params.id);
 
@@ -501,7 +533,7 @@ router.post('/:id/stage-pick/reset', authRequired, (req, res) => {
   const db = getDb();
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
-  if (match.player1_id !== req.user.id && match.player2_id !== req.user.id) {
+  if (!isMatchParticipant(req.params.id, req.user.id)) {
     return res.status(403).json({ error: 'No eres participante' });
   }
   const { resetStagePicks } = require('../logic/stage-pick');
@@ -517,7 +549,7 @@ router.post('/:id/stage-pick', authRequired, (req, res) => {
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
 
-  if (match.player1_id !== req.user.id && match.player2_id !== req.user.id) {
+  if (!isMatchParticipant(req.params.id, req.user.id)) {
     return res.status(403).json({ error: 'No eres participante de esta partida' });
   }
 
@@ -543,7 +575,7 @@ router.post('/:id/stage-pick/gentleman', authRequired, (req, res) => {
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
 
-  if (match.player1_id !== req.user.id && match.player2_id !== req.user.id) {
+  if (!isMatchParticipant(req.params.id, req.user.id)) {
     return res.status(403).json({ error: 'No eres participante de esta partida' });
   }
 
