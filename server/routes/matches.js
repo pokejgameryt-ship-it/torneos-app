@@ -596,4 +596,95 @@ router.post('/:id/stage-pick/gentleman', authRequired, (req, res) => {
   res.json({ success: true, mode: result, stages: STAGES });
 });
 
+router.get('/:id/rps', authRequired, (req, res) => {
+  const db = getDb();
+  const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
+  if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
+  if (!isMatchParticipant(req.params.id, req.user.id) && !isTournamentCreator(match.tournament_id, req.user.id)) {
+    return res.status(403).json({ error: 'No tienes acceso' });
+  }
+
+  const gameNumber = parseInt(req.query.game) || 1;
+  const row = db.prepare('SELECT * FROM match_rps WHERE match_id = ? AND game_number = ?').get(req.params.id, gameNumber);
+
+  const playerNum = getMatchPlayerNum(req.params.id, req.user.id);
+
+  res.json({
+    player1_choice: row?.player1_choice || null,
+    player2_choice: row?.player2_choice || null,
+    winner: row?.winner || null,
+    player1_confirmed: !!row?.player1_choice,
+    player2_confirmed: !!row?.player2_choice,
+    my_confirmed: playerNum === 1 ? !!row?.player1_choice : !!row?.player2_choice,
+    my_player_num: playerNum
+  });
+});
+
+router.post('/:id/rps', authRequired, (req, res) => {
+  const { choice, game } = req.body;
+  const validChoices = ['🪨', '📄', '✂️'];
+  if (!choice || !validChoices.includes(choice)) return res.status(400).json({ error: 'Elección inválida' });
+
+  const db = getDb();
+  const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(req.params.id);
+  if (!match) return res.status(404).json({ error: 'Partida no encontrada' });
+  if (!isMatchParticipant(req.params.id, req.user.id)) {
+    return res.status(403).json({ error: 'No eres participante' });
+  }
+  if (match.status === 'completed') return res.status(400).json({ error: 'La partida ya ha finalizado' });
+
+  const playerNum = getMatchPlayerNum(req.params.id, req.user.id);
+  if (playerNum === 0) return res.status(403).json({ error: 'No eres participante' });
+
+  const gameNumber = parseInt(game) || 1;
+
+  let row = db.prepare('SELECT * FROM match_rps WHERE match_id = ? AND game_number = ?').get(req.params.id, gameNumber);
+  if (!row) {
+    db.prepare('INSERT INTO match_rps (match_id, game_number, player1_choice, player2_choice) VALUES (?, ?, NULL, NULL)').run(req.params.id, gameNumber);
+    row = { match_id: req.params.id, game_number: gameNumber, player1_choice: null, player2_choice: null, winner: null };
+  }
+
+  if (playerNum === 1 && row.player1_choice) return res.status(400).json({ error: 'Ya has elegido. Espera al rival.' });
+  if (playerNum === 2 && row.player2_choice) return res.status(400).json({ error: 'Ya has elegido. Espera al rival.' });
+
+  const col = playerNum === 1 ? 'player1_choice' : 'player2_choice';
+  db.prepare(`UPDATE match_rps SET ${col} = ? WHERE match_id = ? AND game_number = ?`).run(choice, req.params.id, gameNumber);
+
+  row = db.prepare('SELECT * FROM match_rps WHERE match_id = ? AND game_number = ?').get(req.params.id, gameNumber);
+
+  let winner = null;
+  if (row.player1_choice && row.player2_choice) {
+    if (row.player1_choice === row.player2_choice) {
+      winner = 0;
+    } else if (
+      (row.player1_choice === '🪨' && row.player2_choice === '✂️') ||
+      (row.player1_choice === '📄' && row.player2_choice === '🪨') ||
+      (row.player1_choice === '✂️' && row.player2_choice === '📄')
+    ) {
+      winner = 1;
+    } else {
+      winner = 2;
+    }
+    db.prepare('UPDATE match_rps SET winner = ? WHERE match_id = ? AND game_number = ?').run(winner, req.params.id, gameNumber);
+  }
+
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`match:${req.params.id}`).emit('rps:updated', {
+      matchId: req.params.id,
+      game: gameNumber,
+      winner
+    });
+  }
+
+  res.json({
+    success: true,
+    player1_confirmed: !!row.player1_choice,
+    player2_confirmed: !!row.player2_choice,
+    winner,
+    my_confirmed: true,
+    my_player_num: playerNum
+  });
+});
+
 module.exports = router;

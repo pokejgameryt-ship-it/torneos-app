@@ -9,21 +9,20 @@ import PokePasteInput from './PokePasteInput';
 const RPS_OPTIONS = ['🪨', '📄', '✂️'];
 const RPS_NAMES = { '🪨': 'Piedra', '📄': 'Papel', '✂️': 'Tijera' };
 
-function getRPSWinner(p1, p2) {
-  if (p1 === p2) return null;
-  if ((p1 === '🪨' && p2 === '✂️') || (p1 === '📄' && p2 === '🪨') || (p1 === '✂️' && p2 === '📄')) return 1;
-  return 2;
-}
-
 export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
   const { user, token } = useAuth();
   const [step, setStep] = useState('rps');
   const [loading, setLoading] = useState(false);
   const [matchData, setMatchData] = useState(match);
   const [gameNumber, setGameNumber] = useState(1);
-  const [rpsP1, setRpsP1] = useState(null);
-  const [rpsP2, setRpsP2] = useState(null);
-  const [rpsWinner, setRpsWinner] = useState(null);
+  const [rpsState, setRpsState] = useState({
+    player1_choice: null,
+    player2_choice: null,
+    winner: null,
+    my_confirmed: false,
+    my_player_num: 0
+  });
+  const [rpsPendingChoice, setRpsPendingChoice] = useState(null);
   const [stagePickerKey, setStagePickerKey] = useState(0);
   const [p1Vote, setP1Vote] = useState(null);
   const [p2Vote, setP2Vote] = useState(null);
@@ -51,14 +50,47 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
     socketRef.current.on('stage:updated', (data) => {
       if (data.matchId === matchData.id) refreshMatch();
     });
+    socketRef.current.on('rps:updated', (data) => {
+      if (data.matchId === matchData.id && data.game === gameNumber) {
+        refreshRps();
+        if (data.winner && data.winner !== 0) {
+          setTimeout(() => setStep('character'), 1500);
+        }
+      }
+    });
     return () => { socketRef.current?.disconnect(); };
-  }, [matchData.id]);
+  }, [matchData.id, gameNumber]);
+
+  useEffect(() => {
+    if (step === 'rps' && myPlayerNum > 0) {
+      refreshRps();
+    }
+  }, [step, gameNumber, myPlayerNum]);
 
   async function refreshMatch() {
     try {
       const res = await fetch(`${API_BASE}/matches/${matchData.id}`);
       const data = await res.json();
       setMatchData(data);
+    } catch {}
+  }
+
+  async function refreshRps() {
+    try {
+      const res = await fetch(`${API_BASE}/matches/${matchData.id}/rps?game=${gameNumber}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.error) return;
+      setRpsState(data);
+      if (data.winner && data.winner !== 0 && step === 'rps') {
+        setTimeout(() => setStep('character'), 1500);
+      }
+      if (data.winner === 0 && data.player1_choice && data.player2_choice) {
+        setTimeout(() => {
+          setRpsPendingChoice(null);
+        }, 1500);
+      }
     } catch {}
   }
 
@@ -83,23 +115,23 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
     return 2;
   }
 
-  function handleRPS(choice) {
-    if (myPlayerNum === 1) setRpsP1(choice);
-    else setRpsP2(choice);
+  async function handleConfirmRPS() {
+    if (!rpsPendingChoice) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/matches/${matchData.id}/rps`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ choice: rpsPendingChoice, game: gameNumber })
+      });
+      const data = await res.json();
+      if (data.error) { alert(data.error); setLoading(false); return; }
+      setRpsState(prev => ({ ...prev, my_confirmed: true }));
+      setRpsPendingChoice(null);
+      await refreshRps();
+    } catch { alert('Error al confirmar elección'); }
+    setLoading(false);
   }
-
-  useEffect(() => {
-    if (rpsP1 && rpsP2) {
-      const winner = getRPSWinner(rpsP1, rpsP2);
-      if (winner) {
-        setRpsWinner(winner);
-        setTimeout(() => setStep('character'), 1500);
-      } else {
-        setRpsP1(null);
-        setRpsP2(null);
-      }
-    }
-  }, [rpsP1, rpsP2]);
 
   async function resetStages() {
     await fetch(`${API_BASE}/matches/${matchData.id}/stage-pick/reset`, {
@@ -113,9 +145,14 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
     setGameNumber(g => g + 1);
     setP1Vote(null);
     setP2Vote(null);
-    setRpsP1(null);
-    setRpsP2(null);
-    setRpsWinner(null);
+    setRpsState({
+      player1_choice: null,
+      player2_choice: null,
+      winner: null,
+      my_confirmed: false,
+      my_player_num: myPlayerNum
+    });
+    setRpsPendingChoice(null);
     resetStages();
     setStep(tournament.game_type === 'smash' ? 'rps' : tournament.game_type === 'pokemon' ? 'pokepaste' : 'play');
   }
@@ -205,36 +242,74 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
                 <p className="text-gray-400 text-xs mt-2">El ganador decide quién banea primero</p>
               </div>
 
-              {rpsP1 && !rpsP2 && myPlayerNum === 2 && (
+              {(rpsState.player1_choice && !rpsState.player2_choice && rpsState.my_player_num === 2) && (
                 <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
               )}
-              {rpsP2 && !rpsP1 && myPlayerNum === 1 && (
+              {(rpsState.player2_choice && !rpsState.player1_choice && rpsState.my_player_num === 1) && (
+                <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
+              )}
+              {(rpsState.my_confirmed && !rpsState.player1_choice && rpsState.my_player_num === 1 && !rpsState.player2_choice) && (
+                <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
+              )}
+              {(rpsState.my_confirmed && !rpsState.player2_choice && rpsState.my_player_num === 2 && !rpsState.player1_choice) && (
                 <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
               )}
 
-              {rpsWinner && (
+              {rpsState.winner && rpsState.winner !== 0 && (
                 <div className="text-center">
                   <p className="text-green-400 font-bold text-lg">
-                    {RPS_NAMES[rpsP1]} vs {RPS_NAMES[rpsP2]}
+                    {RPS_NAMES[rpsState.player1_choice]} vs {RPS_NAMES[rpsState.player2_choice]}
                   </p>
                   <p className="text-white text-sm mt-1">
-                    Ganador: Jugador {rpsWinner} ({rpsWinner === 1 ? matchData.player1?.name : matchData.player2?.name})
+                    Ganador: Jugador {rpsState.winner} ({rpsState.winner === 1 ? matchData.player1?.name : matchData.player2?.name})
                   </p>
                 </div>
               )}
 
-              {!rpsWinner && (
-                <div className="flex justify-center gap-4">
-                  {RPS_OPTIONS.map(opt => (
-                    <button key={opt} onClick={() => handleRPS(opt)}
-                      className={`w-20 h-20 rounded-2xl border-2 text-4xl flex items-center justify-center transition-all hover:scale-110 ${
-                        (myPlayerNum === 1 ? rpsP1 : rpsP2) === opt
-                          ? 'border-primary bg-primary/20'
-                          : 'border-gray-700 bg-dark hover:border-gray-500'
-                      }`}>
-                      {opt}
-                    </button>
-                  ))}
+              {rpsState.winner === 0 && rpsState.player1_choice && rpsState.player2_choice && (
+                <div className="text-center">
+                  <p className="text-orange-400 font-bold text-lg">
+                    ¡Empate! {RPS_NAMES[rpsState.player1_choice]} vs {RPS_NAMES[rpsState.player2_choice]}
+                  </p>
+                  <p className="text-white text-sm mt-1">Ambos vuelvan a elegir...</p>
+                </div>
+              )}
+
+              {!rpsState.my_confirmed && !rpsState.winner && (
+                <>
+                  <p className="text-center text-gray-300 text-sm">Selecciona tu jugada y confirma:</p>
+                  <div className="flex justify-center gap-4">
+                    {RPS_OPTIONS.map(opt => (
+                      <button key={opt}
+                        onClick={() => setRpsPendingChoice(opt)}
+                        className={`w-20 h-20 rounded-2xl border-2 text-4xl flex items-center justify-center transition-all hover:scale-110 ${
+                          rpsPendingChoice === opt
+                            ? 'border-primary bg-primary/20'
+                            : 'border-gray-700 bg-dark hover:border-gray-500'
+                        }`}>
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleConfirmRPS}
+                    disabled={!rpsPendingChoice || loading}
+                    className="w-full btn-primary py-3 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Confirmando...' : 'Confirmar Elección'}
+                  </button>
+                </>
+              )}
+
+              {rpsState.my_confirmed && !rpsState.winner && (
+                <div className="text-center">
+                  <p className="text-green-400 text-sm font-semibold">✓ Has confirmado tu elección</p>
+                  <button
+                    onClick={() => setRpsPendingChoice(null)}
+                    className="mt-2 text-gray-500 hover:text-gray-300 text-xs underline"
+                  >
+                    Cambiar elección
+                  </button>
                 </div>
               )}
             </div>

@@ -143,6 +143,17 @@ CREATE TABLE IF NOT EXISTS match_stage_mode (
   FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS match_rps (
+  match_id TEXT NOT NULL,
+  game_number INTEGER NOT NULL DEFAULT 1,
+  player1_choice TEXT,
+  player2_choice TEXT,
+  winner INTEGER,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (match_id, game_number),
+  FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS direct_messages (
   id TEXT PRIMARY KEY,
   sender_id TEXT NOT NULL,
