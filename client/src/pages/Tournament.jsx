@@ -51,6 +51,8 @@ function Tournament() {
     }
   }, [id])
 
+  const isCreator = user?.id === tournament?.creator_id
+
   async function loadData() {
     const t = await fetchTournament(id)
     setTournament(t)
@@ -161,6 +163,25 @@ function Tournament() {
       <div className="container mx-auto px-4 py-8 text-center">
         <p className="text-red-400">Torneo no encontrado</p>
         <Link to="/" className="btn-primary mt-4 inline-block">Volver al Dashboard</Link>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <p className="text-red-400">Inicia sesión para gestionar torneos</p>
+        <Link to="/login" className="btn-primary mt-4 inline-block">Iniciar Sesión</Link>
+      </div>
+    )
+  }
+
+  if (user.id !== tournament.creator_id) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <p className="text-red-400">No tienes permisos para gestionar este torneo</p>
+        <Link to={`/register/${tournament.id}`} className="btn-primary mt-4 inline-block">Inscribirse</Link>
+        <Link to="/" className="btn-secondary mt-4 ml-4 inline-block">Volver al Dashboard</Link>
       </div>
     )
   }

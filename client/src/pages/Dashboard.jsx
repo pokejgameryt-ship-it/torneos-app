@@ -123,9 +123,17 @@ function Dashboard() {
                   )}
                 </div>
                 <div className="flex gap-3">
-                  <Link to={`/tournament/${tournament.id}`} className="btn-primary flex-1 text-center text-sm">Gestionar</Link>
+                  {user?.id === tournament.creator_id ? (
+                    <>
+                      <Link to={`/tournament/${tournament.id}`} className="btn-primary flex-1 text-center text-sm">Gestionar</Link>
+                      <button onClick={() => handleDelete(tournament.id)} className="btn-danger text-sm px-3">🗑️</button>
+                    </>
+                  ) : (
+                    <>
+                      <Link to={`/register/${tournament.id}`} className="btn-primary flex-1 text-center text-sm">Inscribirse</Link>
+                    </>
+                  )}
                   <Link to={`/view/${tournament.id}`} className="btn-secondary flex-1 text-center text-sm" target="_blank">Ver Bracket</Link>
-                  <button onClick={() => handleDelete(tournament.id)} className="btn-danger text-sm px-3">🗑️</button>
                 </div>
               </div>
             ))}
