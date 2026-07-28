@@ -25,13 +25,13 @@ export default function ProfilePage() {
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <Link to="/" className="text-gray-400 hover:text-white mb-4 inline-block">← Volver</Link>
 
-      <div className="bg-dark-light rounded-xl border border-gray-700 p-6 mb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-3xl font-bold text-primary overflow-hidden">
+      <div className="bg-dark-light rounded-xl border border-gray-700 p-4 sm:p-6 mb-6">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 mb-4">
+          <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-3xl font-bold text-primary overflow-hidden flex-shrink-0">
             {profile.avatar ? <img src={profile.avatar} className="w-full h-full object-cover" /> : (profile.display_name || profile.nickname).charAt(0).toUpperCase()}
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">{profile.display_name || profile.nickname}</h1>
+          <div className="text-center sm:text-left">
+            <h1 className="text-xl sm:text-2xl font-bold text-white">{profile.display_name || profile.nickname}</h1>
             <p className="text-gray-400">@{profile.nickname}</p>
             {profile.country && (
               <p className="text-sm text-gray-400 mt-1" style={{ fontFamily: "'Segoe UI Emoji', sans-serif" }}>
@@ -40,10 +40,10 @@ export default function ProfilePage() {
             )}
           </div>
           {isOwn && (
-            <Link to="/settings" className="ml-auto btn-secondary text-sm">⚙️ Editar perfil</Link>
+            <Link to="/settings" className="btn-secondary text-sm">⚙️ Editar perfil</Link>
           )}
           {!isOwn && currentUser && (
-            <Link to={`/dm/${profile.id}`} className="ml-auto btn-primary text-sm">💬 Mensaje</Link>
+            <Link to={`/dm/${profile.id}`} className="btn-primary text-sm">💬 Mensaje</Link>
           )}
         </div>
         {profile.bio && <p className="text-gray-300 text-sm mb-4">{profile.bio}</p>}

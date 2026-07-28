@@ -129,7 +129,7 @@ function CreateTournament() {
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Tipo de Juego</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {GAME_TYPES.map(gt => (
                 <button key={gt.value} type="button" onClick={() => setForm(prev => ({ ...prev, game_type: gt.value }))}
                   className={`p-3 rounded-lg border-2 text-left transition ${form.game_type === gt.value ? 'border-primary bg-primary/10' : 'border-gray-700 hover:border-gray-500'}`}>
@@ -207,7 +207,7 @@ function CreateTournament() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Fecha de inicio</label>
               <input type="date" name="start_date" value={form.start_date} onChange={handleChange} className="w-full" />

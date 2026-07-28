@@ -10,6 +10,7 @@ function Dashboard() {
   const [myTournaments, setMyTournaments] = useState([])
   const [loading, setLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
   const socketRef = useRef(null)
 
   useEffect(() => {
@@ -57,7 +58,8 @@ function Dashboard() {
       <nav className="bg-dark-light border-b border-gray-800 sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="text-xl font-bold text-primary">🏆 Torneos</Link>
-          <div className="flex items-center gap-2">
+
+          <div className="hidden md:flex items-center gap-2">
             <Link to="/search" className="text-sm text-gray-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-dark transition">🔍 Buscar</Link>
             {user && <Link to="/dm" className="text-sm text-gray-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-dark transition relative">
               💬 Chats
@@ -80,7 +82,39 @@ function Dashboard() {
               </>
             )}
           </div>
+
+          <div className="md:hidden flex items-center gap-2">
+            {user && (
+              <Link to="/dm" className="relative text-gray-400 hover:text-white p-2">
+                💬
+                {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+              </Link>
+            )}
+            <button onClick={() => setMenuOpen(!menuOpen)} className="text-gray-400 hover:text-white p-2">
+              {menuOpen ? '✕' : '☰'}
+            </button>
+          </div>
         </div>
+
+        {menuOpen && (
+          <div className="md:hidden border-t border-gray-700 bg-dark-light px-4 py-3 space-y-2" onClick={() => setMenuOpen(false)}>
+            <Link to="/search" className="block text-gray-300 hover:text-white py-2">🔍 Buscar</Link>
+            <Link to="/help" className="block text-gray-300 hover:text-white py-2">❓ Ayuda</Link>
+            {user ? (
+              <>
+                <Link to="/create" className="block text-gray-300 hover:text-white py-2">➕ Crear Torneo</Link>
+                <Link to={`/profile/${user.id}`} className="block text-gray-300 hover:text-white py-2">👤 Mi Perfil</Link>
+                <Link to="/settings" className="block text-gray-300 hover:text-white py-2">⚙️ Configuración</Link>
+                <button onClick={logout} className="block text-red-400 hover:text-red-300 py-2 text-left w-full">🚪 Cerrar Sesión</button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="block text-gray-300 hover:text-white py-2">Iniciar Sesión</Link>
+                <Link to="/signup" className="block text-primary hover:text-primary/80 py-2 font-semibold">Registrarse</Link>
+              </>
+            )}
+          </div>
+        )}
       </nav>
 
       <div className="container mx-auto px-4 py-8">

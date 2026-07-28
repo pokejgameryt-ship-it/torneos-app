@@ -69,3 +69,11 @@ button {
 .btn-danger:hover {
   background-color: #dc2626;
 }
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

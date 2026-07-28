@@ -65,6 +65,8 @@ export default function DMPage() {
 
   const openChat = (uid) => { navigate(`/dm/${uid}`); setSearchQuery(''); setSearchResults([]); };
 
+  const goBack = () => { navigate('/dm'); };
+
   if (loading) return <div className="container mx-auto px-4 py-8 text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div></div>;
 
   return (
@@ -92,8 +94,8 @@ export default function DMPage() {
         </div>
       )}
 
-      <div className="flex gap-4" style={{ height: '500px' }}>
-        <div className="w-64 bg-dark-light rounded-xl border border-gray-700 overflow-y-auto flex-shrink-0">
+      <div className="flex flex-col md:flex-row gap-4" style={{ minHeight: '500px' }}>
+        <div className={`${userId ? 'hidden md:block' : 'block'} md:w-64 bg-dark-light rounded-xl border border-gray-700 overflow-y-auto flex-shrink-0`}>
           {conversations.length === 0 && <p className="text-gray-500 text-sm text-center p-4">No hay conversaciones</p>}
           {conversations.map(c => (
             <button key={c.other_id} onClick={() => openChat(c.other_id)}
@@ -110,12 +112,13 @@ export default function DMPage() {
           ))}
         </div>
 
-        <div className="flex-1 bg-dark-light rounded-xl border border-gray-700 flex flex-col">
+        <div className={`${userId ? 'block' : 'hidden md:block'} flex-1 bg-dark-light rounded-xl border border-gray-700 flex flex-col`}>
           {!userId ? (
             <div className="flex-1 flex items-center justify-center"><p className="text-gray-500">Selecciona una conversación</p></div>
           ) : (
             <>
-              <div className="p-3 border-b border-gray-700">
+              <div className="p-3 border-b border-gray-700 flex items-center gap-2">
+                <button onClick={goBack} className="md:hidden text-gray-400 hover:text-white p-1">←</button>
                 <p className="text-white font-bold text-sm">
                   {conversations.find(c => c.other_id === userId)?.display_name || conversations.find(c => c.other_id === userId)?.nickname || 'Chat'}
                 </p>

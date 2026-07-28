@@ -190,36 +190,37 @@ function Tournament() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6 sm:mb-8">
         <Link to="/" className="text-gray-400 hover:text-white">← Volver</Link>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold text-white">{tournament.name}</h1>
-          <p className="text-gray-400">{tournament.game} • {tournament.tournament_type} • {tournament.elimination_type === 'double' ? 'Doble Eliminación' : 'Eliminación Simple'}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-gray-400 mb-1">Enlace para compartir:</p>
-          <div className="flex items-center gap-2">
-            <input type="text" value={shareUrl} readOnly className="text-xs w-64" />
-            <button onClick={() => navigator.clipboard.writeText(shareUrl)} className="btn-secondary text-xs">📋</button>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">{tournament.name}</h1>
+          <p className="text-gray-400 text-sm">{tournament.game} • {tournament.tournament_type} • {tournament.elimination_type === 'double' ? 'Doble Eliminación' : 'Eliminación Simple'}</p>
         </div>
       </div>
 
-      <div className="flex gap-4 mb-6 border-b border-gray-700 pb-4">
-        <button onClick={() => setTab('participants')} className={`px-4 py-2 rounded-lg font-semibold ${tab === 'participants' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>
+      <div className="bg-dark-light rounded-lg border border-gray-700 p-3 mb-6">
+        <p className="text-xs text-gray-400 mb-1">Enlace para compartir:</p>
+        <div className="flex items-center gap-2">
+          <input type="text" value={shareUrl} readOnly className="text-xs flex-1 min-w-0" />
+          <button onClick={() => navigator.clipboard.writeText(shareUrl)} className="btn-secondary text-xs px-2 py-1 flex-shrink-0">📋 Copiar</button>
+        </div>
+      </div>
+
+      <div className="flex gap-2 sm:gap-4 mb-6 border-b border-gray-700 pb-4 overflow-x-auto scrollbar-none">
+        <button onClick={() => setTab('participants')} className={`px-3 sm:px-4 py-2 rounded-lg font-semibold whitespace-nowrap text-sm ${tab === 'participants' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>
           Participantes ({tournament.participants?.length || 0})
         </button>
-        <button onClick={() => setTab('bracket')} className={`px-4 py-2 rounded-lg font-semibold ${tab === 'bracket' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>
+        <button onClick={() => setTab('bracket')} className={`px-3 sm:px-4 py-2 rounded-lg font-semibold whitespace-nowrap text-sm ${tab === 'bracket' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>
           Bracket
         </button>
-        <button onClick={() => setTab('overlay')} className={`px-4 py-2 rounded-lg font-semibold ${tab === 'overlay' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>
+        <button onClick={() => setTab('overlay')} className={`px-3 sm:px-4 py-2 rounded-lg font-semibold whitespace-nowrap text-sm ${tab === 'overlay' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>
           Overlays OBS
         </button>
       </div>
 
       {tab === 'participants' && (
         <div className="bg-dark-light rounded-xl border border-gray-700 p-6">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
             <h2 className="text-xl font-bold text-white">Participantes ({tournament.participants?.length || 0})</h2>
             <div className="flex gap-2">
               {tournament.participants?.length >= 2 && tournament.status === 'pending' && (

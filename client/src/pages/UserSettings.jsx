@@ -94,23 +94,23 @@ export default function UserSettings() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <Link to="/" className="text-gray-400 hover:text-white mb-4 inline-block">← Volver</Link>
-      <h1 className="text-3xl font-bold text-white mb-6">⚙️ Configuración</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-white mb-6">⚙️ Configuración</h1>
 
-      <div className="flex gap-2 mb-6 border-b border-gray-700 pb-4 overflow-x-auto">
-        <button onClick={() => setTab('profile')} className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap ${tab === 'profile' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>👤 Perfil</button>
-        <button onClick={() => setTab('defaults')} className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap ${tab === 'defaults' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>🎯 Valores por defecto</button>
-        <button onClick={() => setTab('security')} className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap ${tab === 'security' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>🔒 Seguridad</button>
+      <div className="flex gap-1 sm:gap-2 mb-6 border-b border-gray-700 pb-4 overflow-x-auto scrollbar-none">
+        <button onClick={() => setTab('profile')} className={`px-3 sm:px-4 py-2 rounded-lg font-semibold whitespace-nowrap text-sm ${tab === 'profile' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>👤 Perfil</button>
+        <button onClick={() => setTab('defaults')} className={`px-3 sm:px-4 py-2 rounded-lg font-semibold whitespace-nowrap text-sm ${tab === 'defaults' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>🎯 Valores por defecto</button>
+        <button onClick={() => setTab('security')} className={`px-3 sm:px-4 py-2 rounded-lg font-semibold whitespace-nowrap text-sm ${tab === 'security' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>🔒 Seguridad</button>
       </div>
 
       {msg && <div className={`mb-4 p-3 rounded-lg text-sm ${msg.includes('Error') || msg.includes('error') ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>{msg}</div>}
 
       {tab === 'profile' && (
         <div className="bg-dark-light rounded-xl border border-gray-700 p-6 space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-3xl font-bold text-primary overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-3xl font-bold text-primary overflow-hidden flex-shrink-0">
               {avatar ? <img src={avatar} className="w-full h-full object-cover" /> : (displayName || user?.nickname || '?').charAt(0).toUpperCase()}
             </div>
-            <div>
+            <div className="flex sm:flex-col items-center sm:items-start gap-2">
               <label className="btn-secondary text-sm cursor-pointer">
                 📷 Cambiar foto
                 <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
@@ -134,7 +134,7 @@ export default function UserSettings() {
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-400 mb-1">País</label>
               <div className="flex gap-2">

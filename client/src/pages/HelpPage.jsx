@@ -105,12 +105,12 @@ export default function HelpPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
       <Link to="/" className="text-gray-400 hover:text-white mb-4 inline-block">← Volver</Link>
-      <h1 className="text-3xl font-bold text-white mb-2">❓ Ayuda</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">❓ Ayuda</h1>
       <p className="text-gray-400 mb-8">Guía completa de uso de la aplicación Torneos.</p>
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {sections.map((s, i) => (
-          <div key={i} className="bg-dark-light rounded-xl border border-gray-700 p-6">
+          <div key={i} className="bg-dark-light rounded-xl border border-gray-700 p-4 sm:p-6">
             <h2 className="text-lg font-bold text-white mb-3">{s.title}</h2>
             <ul className="space-y-2">
               {s.items.map((item, j) => (
