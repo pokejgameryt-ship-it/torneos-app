@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import { fetchTournament, fetchBracket, nextMatch, SOCKET_URL, API_BASE } from '../api'
 import { useAuth } from '../context/AuthContext'
 import MatchChat from '../components/MatchChat'
-import MatchRoom from '../components/MatchRoom'
 import StagePicker from '../components/StagePicker'
 import PokePasteInput from '../components/PokePasteInput'
 import CharacterPicker from '../components/CharacterPicker'
@@ -196,12 +195,12 @@ function statusColor(m) {
 export default function TournamentPlay() {
   const { id } = useParams()
   const { user, token } = useAuth()
+  const navigate = useNavigate()
   const [tournament, setTournament] = useState(null)
   const [bracket, setBracket] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedMatch, setSelectedMatch] = useState(null)
   const [chatMatchId, setChatMatchId] = useState(null)
-  const [matchRoomMatch, setMatchRoomMatch] = useState(null)
   const [p1Score, setP1Score] = useState(0)
   const [p2Score, setP2Score] = useState(0)
   const [error, setError] = useState('')
@@ -365,7 +364,7 @@ export default function TournamentPlay() {
                 onSelectMatch={setSelectedMatch}
                 onNextMatch={handleNextMatch}
                 refresh={loadBracket}
-                onOpenMatchRoom={setMatchRoomMatch}
+                onOpenMatchRoom={(match) => navigate(`/match/${match.id}`)}
               />
             </div>
 
@@ -385,7 +384,7 @@ export default function TournamentPlay() {
                       <p className="text-sm text-gray-300">Tu próximo set: <span className="font-bold text-primary">#{myMatch.match_order}</span> ({myMatch.round_name})</p>
                       <p className="text-xs text-gray-500">Contra: {myMatch.player1_id === myPart.id ? tournament.participants.find(p => p.id === myMatch.player2_id)?.name : tournament.participants.find(p => p.id === myMatch.player1_id)?.name}</p>
                       {tournament.current_match_order === myMatch.match_order && (
-                        <button onClick={() => setMatchRoomMatch(myMatch)} className="w-full btn-primary py-2 font-bold">
+                        <button onClick={() => navigate(`/match/${myMatch.id}`)} className="w-full btn-primary py-2 font-bold">
                           ⚔️ Empezar Combate
                         </button>
                       )}
@@ -417,15 +416,6 @@ export default function TournamentPlay() {
           </div>
         )}
       </div>
-
-      {matchRoomMatch && (
-        <MatchRoom
-          match={matchRoomMatch}
-          tournament={tournament}
-          onClose={() => setMatchRoomMatch(null)}
-          onUpdate={loadBracket}
-        />
-      )}
 
       {selectedMatch && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setSelectedMatch(null)}>

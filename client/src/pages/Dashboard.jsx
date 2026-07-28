@@ -162,7 +162,7 @@ function Dashboard() {
                             </span>
                           )}
                           {isActive && myMatch && (
-                            <Link to={`/tournament/${t.id}/play`} className="bg-green-600 hover:bg-green-500 text-white flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold transition">
+                            <Link to={`/match/${myMatch.id}`} className="bg-green-600 hover:bg-green-500 text-white flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold transition">
                               ⚔️ Empezar Set
                             </Link>
                           )}
@@ -235,7 +235,7 @@ function Dashboard() {
                         )}
 
                         {isActive && isParticipant && myMatch && (
-                          <Link to={`/tournament/${tournament.id}/play`} className="bg-green-600 hover:bg-green-500 text-white flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold transition">
+                          <Link to={`/match/${myMatch.id}`} className="bg-green-600 hover:bg-green-500 text-white flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold transition">
                             ⚔️ Empezar Set
                           </Link>
                         )}

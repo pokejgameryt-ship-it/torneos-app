@@ -13,6 +13,7 @@ import UserSettings from './pages/UserSettings'
 import DMPage from './pages/DMPage'
 import HelpPage from './pages/HelpPage'
 import TournamentPlay from './pages/TournamentPlay'
+import MatchRoomPage from './pages/MatchRoomPage'
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
             <Route path="/dm" element={<DMPage />} />
             <Route path="/dm/:userId" element={<DMPage />} />
             <Route path="/tournament/:id/play" element={<TournamentPlay />} />
+            <Route path="/match/:matchId" element={<MatchRoomPage />} />
             <Route path="/help" element={<HelpPage />} />
           </Routes>
         </div>
