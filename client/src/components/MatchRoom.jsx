@@ -395,7 +395,7 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
                   Siguiente Game →
                 </button>
               ) : (
-                <button onClick={onClose}
+                <button onClick={() => { if (onUpdate) onUpdate(); onClose(); }}
                   className="w-full bg-green-600 hover:bg-green-500 text-white py-3 font-bold text-lg rounded-lg transition">
                   Set finalizado — Cerrar
                 </button>

@@ -24,7 +24,23 @@ router.get('/my/registrations', (req, res) => {
       FROM participants p JOIN tournaments t ON p.tournament_id = t.id
       WHERE p.user_id = ? ORDER BY t.created_at DESC
     `).all(decoded.id);
-    res.json(participations);
+
+    const result = participations.map(t => {
+      let myMatch = null;
+      if (t.status === 'active' && t.current_match_order > 0) {
+        const participant = db.prepare('SELECT id FROM participants WHERE tournament_id = ? AND user_id = ?').get(t.id, decoded.id);
+        if (participant) {
+          myMatch = db.prepare(`
+            SELECT m.id, m.match_order, m.round_name, m.player1_id, m.player2_id, m.status
+            FROM matches m WHERE m.tournament_id = ? AND m.match_order = ?
+            AND (m.player1_id = ? OR m.player2_id = ?)
+          `).get(t.id, t.current_match_order, participant.id, participant.id);
+        }
+      }
+      return { ...t, my_current_match: myMatch ? { id: myMatch.id, match_order: myMatch.match_order, round_name: myMatch.round_name, status: myMatch.status } : null };
+    });
+
+    res.json(result);
   } catch { res.json([]); }
 });
 

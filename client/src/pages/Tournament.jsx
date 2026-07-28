@@ -144,11 +144,7 @@ function Tournament() {
 
   async function handleNextMatch() {
     const result = await nextMatch(id)
-    if (result.finished) {
-      loadData()
-    } else {
-      loadBracket()
-    }
+    loadData()
   }
 
   if (loading) {
@@ -364,7 +360,7 @@ function Tournament() {
           onSelectMatch={openScoreModal}
           onUndo={handleUndo}
           onNextMatch={handleNextMatch}
-          refresh={loadBracket}
+          refresh={loadData}
           onOpenMatchRoom={setMatchRoomMatch}
         />
       )}

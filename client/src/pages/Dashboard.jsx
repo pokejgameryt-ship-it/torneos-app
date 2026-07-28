@@ -178,18 +178,45 @@ function Dashboard() {
                     <p>⚡ {tournament.game_type === 'pokemon' ? 'Pokémon' : tournament.game_type === 'smash' ? 'Smash Bros' : tournament.game_type}</p>
                   )}
                 </div>
-                <div className="flex gap-3">
-                  {user?.id === tournament.creator_id ? (
-                    <>
-                      <Link to={`/tournament/${tournament.id}`} className="btn-primary flex-1 text-center text-sm">Gestionar</Link>
-                      <button onClick={() => handleDelete(tournament.id)} className="btn-danger text-sm px-3">🗑️</button>
-                    </>
-                  ) : (
-                    <>
-                      <Link to={`/register/${tournament.id}`} className="btn-primary flex-1 text-center text-sm">Inscribirse</Link>
-                    </>
-                  )}
-                  <Link to={`/view/${tournament.id}`} className="btn-secondary flex-1 text-center text-sm" target="_blank">Ver Bracket</Link>
+                <div className="flex gap-2 flex-wrap">
+                  {(() => {
+                    const isCreator = user?.id === tournament.creator_id
+                    const myPart = myTournaments.find(t => t.id === tournament.id)
+                    const isParticipant = !!myPart
+                    const isPending = tournament.status === 'pending'
+                    const isActive = tournament.status === 'active'
+                    const myMatch = myPart?.my_current_match
+
+                    return (
+                      <>
+                        {isCreator && (
+                          <Link to={`/tournament/${tournament.id}`} className="btn-primary flex-1 text-center text-sm">Gestionar</Link>
+                        )}
+
+                        {isPending && !isParticipant && !isCreator && (
+                          <Link to={`/register/${tournament.id}`} className="btn-primary flex-1 text-center text-sm">Inscribirse</Link>
+                        )}
+
+                        {isActive && isParticipant && myMatch && (
+                          <Link to={`/tournament/${tournament.id}?tab=bracket`} className="bg-green-600 hover:bg-green-500 text-white flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold transition">
+                            ⚔️ Empezar Set
+                          </Link>
+                        )}
+
+                        {isActive && isParticipant && !myMatch && (
+                          <span className="flex-1 text-center text-sm py-2 px-3 rounded-lg font-semibold bg-gray-700 text-gray-400">
+                            ⏳ Esperando set...
+                          </span>
+                        )}
+
+                        <Link to={`/view/${tournament.id}`} className="btn-secondary flex-1 text-center text-sm" target="_blank">Ver Bracket</Link>
+
+                        {isCreator && (
+                          <button onClick={() => handleDelete(tournament.id)} className="btn-danger text-sm px-3">🗑️</button>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
               </div>
             ))}
