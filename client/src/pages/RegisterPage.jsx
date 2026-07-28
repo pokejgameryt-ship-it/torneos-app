@@ -4,8 +4,6 @@ import { io } from 'socket.io-client'
 import { getRegisterInfo, registerParticipant, fetchBracket, SOCKET_URL, API_BASE } from '../api'
 import { useAuth } from '../context/AuthContext'
 
-const FLAGS = ['🏳️','🇪🇸','🇲🇽','🇦🇷','🇧🇷','🇺🇸','🇯🇵','🇰🇷','🇫🇷','🇩🇪','🇬🇧','🇮🇹','🇵🇹','🇨🇳','🇷🇺','🇦🇺','🇨🇦','🇳🇱','🇸🇪','🇨🇭','🇵🇱','🇹🇷','🇮🇳','🇹🇭','🇻🇳','🇮🇩','🇵🇭','🇲🇾','🇸🇬','🇳🇬','🇬🇭','🇿🇦','🇪🇬','🇲🇦','🇨🇴','🇨🇱','🇵🇪','🇪🇨','🇻🇪','🇩🇴','🇵🇷','🇨🇺','🇭🇳','🇬🇹','🇸🇻','🇳🇮','🇨🇷','🇵🇦']
-
 function RegisterPage() {
   const { id } = useParams()
   const { user, token } = useAuth()
@@ -18,22 +16,20 @@ function RegisterPage() {
   const [error, setError] = useState('')
   const [bracket, setBracket] = useState(null)
   const socketRef = useRef(null)
-  const [profileLoaded, setProfileLoaded] = useState(false)
 
   useEffect(() => { loadData() }, [id])
 
   useEffect(() => {
-    if (token && !profileLoaded) {
+    if (token) {
       fetch(`${API_BASE}/profile/me/full`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
         .then(d => {
           if (d.default_nickname) setName(d.default_nickname)
           if (d.default_flag) setFlag(d.default_flag)
-          setProfileLoaded(true)
         })
-        .catch(() => setProfileLoaded(true))
+        .catch(() => {})
     }
-  }, [token, profileLoaded])
+  }, [token])
 
   useEffect(() => {
     if (info && info.status !== 'pending') loadBracket()
@@ -62,13 +58,12 @@ function RegisterPage() {
     e.preventDefault()
     setError('')
     if (!token) { setError('Debes iniciar sesión para inscribirte'); return }
-    if (!name.trim()) { setError('Escribe tu nombre'); return }
+    if (!name.trim()) { setError('Configura tu nombre y bandera en tu perfil antes de inscribirte'); return }
     setSubmitting(true)
     try {
       const res = await registerParticipant(id, name.trim(), flag, token)
       if (res.error) { setError(res.error); setSubmitting(false); return }
       setSuccess(true)
-      setName(''); setFlag('')
       setInfo(prev => ({ ...prev, registered: prev.registered + 1, remaining: prev.remaining - 1, participants: [...prev.participants, res.participant] }))
       setSubmitting(false)
     } catch { setError('Error al inscribirse'); setSubmitting(false) }
@@ -129,25 +124,18 @@ function RegisterPage() {
             {success && <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg"><p className="text-green-400 text-sm font-semibold">✓ Te has inscrito correctamente</p></div>}
             {error && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"><p className="text-red-400 text-sm">{error}</p></div>}
 
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Tu nombre (como quieres aparecer)</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Escribe tu nombre..." className="w-full" maxLength={30} disabled={submitting || !token} />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Bandera (opcional)</label>
-                <div className="flex flex-wrap gap-1.5">
-                  <button type="button" onClick={() => setFlag('')} className={`w-9 h-9 rounded border text-lg flex items-center justify-center transition-all ${!flag ? 'border-primary bg-primary/10' : 'border-gray-700 bg-dark hover:border-gray-500'}`}>✕</button>
-                  {FLAGS.map(f => (
-                    <button key={f} type="button" onClick={() => setFlag(f)} className={`w-9 h-9 rounded border text-lg flex items-center justify-center transition-all ${flag === f ? 'border-primary bg-primary/10' : 'border-gray-700 bg-dark hover:border-gray-500'}`}
-                      style={{ fontFamily: "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', sans-serif" }}>{f}</button>
-                  ))}
+            {token && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 bg-dark rounded-lg px-4 py-3">
+                  {flag && <span className="text-2xl" style={{ fontFamily: "'Segoe UI Emoji', sans-serif" }}>{flag}</span>}
+                  <span className="text-white font-semibold text-lg">{name || 'Sin nombre configurado'}</span>
                 </div>
+                <p className="text-xs text-gray-500">Tu nombre y bandera se toman de tu <Link to="/settings" className="underline text-primary hover:text-primary/80">perfil</Link>.</p>
+                <button onClick={handleRegister} disabled={submitting || isFull} className="w-full btn-primary py-3 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed">
+                  {submitting ? 'Inscribiendo...' : 'Inscribirme'}
+                </button>
               </div>
-              <button type="submit" disabled={submitting || isFull || !token} className="w-full btn-primary py-3 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed">
-                {submitting ? 'Inscribiendo...' : 'Inscribirme'}
-              </button>
-            </form>
+            )}
           </div>
         )}
 

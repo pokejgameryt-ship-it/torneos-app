@@ -148,18 +148,36 @@ router.post('/:id/participants', (req, res) => {
   const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(req.params.id);
   if (!tournament) return res.status(404).json({ error: 'Torneo no encontrado' });
 
+  let userId = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const { JWT_SECRET } = require('../middleware/auth');
+      const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      userId = decoded.id;
+    } catch {}
+  }
+  if (!userId) return res.status(401).json({ error: 'Debes iniciar sesión para inscribirte' });
+
+  const alreadyRegistered = db.prepare('SELECT id FROM participants WHERE tournament_id = ? AND user_id = ?').get(req.params.id, userId);
+  if (alreadyRegistered) {
+    return res.status(400).json({ error: 'Ya estás inscrito en este torneo' });
+  }
+
   const existing = db.prepare('SELECT COUNT(*) as count FROM participants WHERE tournament_id = ?').get(req.params.id);
   if (existing.count >= tournament.bracket_size) {
     return res.status(400).json({ error: 'El torneo está lleno (' + tournament.bracket_size + ' participantes máximos)' });
   }
 
-  const id = uuidv4();
+  const participantId = uuidv4();
   const seed = existing.count + 1;
+  const name = req.body.name || '';
   const flag = req.body.flag || '';
 
-  db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag) VALUES (?, ?, ?, ?, ?)').run(id, req.params.id, req.body.name, seed, flag);
+  db.prepare('INSERT INTO participants (id, tournament_id, name, seed, flag, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(participantId, req.params.id, name, seed, flag, userId);
 
-  const participant = db.prepare('SELECT * FROM participants WHERE id = ?').get(id);
+  const participant = db.prepare('SELECT * FROM participants WHERE id = ?').get(participantId);
   res.status(201).json(participant);
 });
 
