@@ -27,6 +27,7 @@ app.use('/api/search', require('./routes/search'));
 app.use('/api/dms', require('./routes/dms'));
 
 app.use('/overlays', express.static(path.join(__dirname, '..', 'overlays')));
+app.use('/Stock Icons', express.static(path.join(__dirname, '..', 'client', 'public', 'Stock Icons')));
 
 app.get('/overlays/scoreboard/:id', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'overlays', 'scoreboard', 'index.html'));

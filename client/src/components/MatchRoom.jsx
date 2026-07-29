@@ -5,6 +5,7 @@ import { io } from 'socket.io-client';
 import CharacterPicker from './CharacterPicker';
 import StagePicker from './StagePicker';
 import PokePasteInput from './PokePasteInput';
+import { getCharacterStockIcon } from '../data/ssbu-characters';
 
 const RPS_OPTIONS = ['🪨', '📄', '✂️'];
 const RPS_NAMES = { '🪨': 'Piedra', '📄': 'Papel', '✂️': 'Tijera' };
@@ -28,6 +29,7 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
   const [p2Vote, setP2Vote] = useState(null);
   const [matchResult, setMatchResult] = useState(null);
   const socketRef = useRef(null);
+  const [rpsWinnerUserId, setRpsWinnerUserId] = useState(null);
 
   const myUserId = user?.id;
   const p1UserId = tournament.participants?.find(p => p.id === matchData.player1_id)?.user_id;
@@ -76,6 +78,16 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
     }
   }, [step, gameNumber, myPlayerNum]);
 
+  useEffect(() => {
+    if (step === 'stage' && rpsWinnerUserId) {
+      fetch(`${API_BASE}/matches/${matchData.id}/stage-pick/rps-winner`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rpsWinnerId: rpsWinnerUserId })
+      }).catch(() => {});
+    }
+  }, [step, rpsWinnerUserId]);
+
   async function refreshMatch() {
     try {
       const res = await fetch(`${API_BASE}/matches/${matchData.id}`);
@@ -117,6 +129,8 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
       if (data.error) return;
       setRpsState(data);
       if (data.winner && data.winner !== 0 && step === 'rps') {
+        const winnerUserId = data.winner === 1 ? p1UserId : p2UserId;
+        setRpsWinnerUserId(winnerUserId);
         setTimeout(() => syncStep('character'), 1500);
       }
       if (data.winner === 0 && data.player1_choice && data.player2_choice) {
@@ -387,6 +401,20 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
                   : 'Ganador banea 3 → Perdedor elige 1'}
               </p>
             </div>
+
+            {myPlayerNum > 0 && (() => {
+              const rivalChar = myPlayerNum === 1 ? matchData.character2 : matchData.character1;
+              const rivalName = myPlayerNum === 1 ? matchData.player2?.name : matchData.player1?.name;
+              const rivalIcon = getCharacterStockIcon(rivalChar);
+              if (!rivalIcon) return null;
+              return (
+                <div className="flex items-center justify-center gap-2 bg-dark rounded-lg p-2 border border-gray-700">
+                  <img src={rivalIcon} alt="" className="w-8 h-8 object-contain" onError={e => { e.target.style.display = 'none'; }} />
+                  <span className="text-gray-400 text-xs">{rivalName} eligió:</span>
+                  <span className="text-white text-xs font-semibold">{require('../data/ssbu-characters').getCharacterById(rivalChar)?.name || rivalChar}</span>
+                </div>
+              );
+            })()}
 
               <StagePicker key={stagePickerKey} matchId={matchData.id} allowGentleman={false} onUpdate={refreshMatch} matchData={matchData} socket={socketRef.current} />
 

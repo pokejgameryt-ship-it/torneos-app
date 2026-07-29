@@ -115,6 +115,22 @@ function getDb() {
       )
     `);
 
+    const smCols = db.prepare("PRAGMA table_info(match_stage_mode)").all().map(c => c.name);
+    if (!smCols.includes('game_number')) {
+      db.exec("ALTER TABLE match_stage_mode ADD COLUMN game_number INTEGER NOT NULL DEFAULT 1");
+    }
+    if (!smCols.includes('rps_winner_id')) {
+      db.exec("ALTER TABLE match_stage_mode ADD COLUMN rps_winner_id TEXT");
+    }
+    if (!smCols.includes('last_winner_id')) {
+      db.exec("ALTER TABLE match_stage_mode ADD COLUMN last_winner_id TEXT");
+    }
+
+    const spCols = db.prepare("PRAGMA table_info(stage_picks)").all().map(c => c.name);
+    if (!spCols.includes('game_number')) {
+      db.exec("ALTER TABLE stage_picks ADD COLUMN game_number INTEGER NOT NULL DEFAULT 1");
+    }
+
     db.exec(`
       CREATE TABLE IF NOT EXISTS match_rps (
         match_id TEXT NOT NULL,

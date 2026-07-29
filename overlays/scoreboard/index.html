@@ -210,6 +210,15 @@
     }
     .pflag img.flag { width: 130px; height: 130px; }
 
+    .pchar {
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .pchar img.char-icon {
+      width: 100px; height: 100px; object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    }
+
     .pscore {
       width: 220px; height: 220px;
       display: flex; align-items: center; justify-content: center;
@@ -449,6 +458,7 @@
       <div class="sb-content" id="sbContent">
         <div class="left-container">
           <span class="pname" id="p1n">Player 1</span>
+          <span class="pchar" id="p1char" style="display:none"><img class="char-icon" id="p1charImg"></span>
           <span class="pflag" id="p1f" style="display:none"></span>
           <span class="pscore ss-square" id="p1s">0</span>
         </div>
@@ -460,6 +470,7 @@
         <div class="right-container">
           <span class="pscore ss-square" id="p2s">0</span>
           <span class="pflag" id="p2f" style="display:none"></span>
+          <span class="pchar" id="p2char" style="display:none"><img class="char-icon" id="p2charImg"></span>
           <span class="pname" id="p2n">Player 2</span>
         </div>
       </div>
@@ -496,6 +507,43 @@
       img.className = 'flag'; img.src = url; img.alt = flagEmoji;
       img.onerror = function() { container.style.display = 'none'; };
       container.appendChild(img); container.style.display = '';
+    }
+
+    const CHAR_ICON_MAP = {
+      'mario': 'Mario', 'donkey-kong': 'DonkeyKong', 'link': 'Link', 'samus': 'Samus',
+      'dark-samus': 'DarkSamus', 'yoshi': 'Yoshi', 'kirby': 'Kirby', 'fox': 'Fox',
+      'pikachu': 'Pikachu', 'luigi': 'Luigi', 'ness': 'Ness', 'captain-falcon': 'CaptainFalcon',
+      'jigglypuff': 'Jigglypuff', 'peach': 'Peach', 'daisy': 'Daisy', 'bowser': 'Bowser',
+      'ice-climbers': 'IceClimbersPopo', 'sheik': 'Sheik', 'zelda': 'Zelda',
+      'dr-mario': 'DrMario', 'pichu': 'Pichu', 'falco': 'Falco', 'marth': 'Marth',
+      'lucina': 'Lucina', 'young-link': 'YoungLink', 'ganondorf': 'Ganondorf',
+      'mewtwo': 'Mewtwo', 'roy': 'Roy', 'chrom': 'Chrom', 'mr-game-watch': 'MrGameAndWatch',
+      'meta-knight': 'MetaKnight', 'pit': 'Pit', 'dark-pit': 'DarkPit',
+      'zero-suit-samus': 'ZeroSuitSamus', 'wario': 'Wario', 'snake': 'Snake', 'ike': 'Ike',
+      'pokemon-trainer': 'PokemonTrainer', 'diddy-kong': 'DiddyKong', 'lucas': 'Lucas',
+      'sonic': 'Sonic', 'king-dedede': 'KingDedede', 'olimar': 'Olimar', 'lucario': 'Lucario',
+      'robot': 'Rob', 'toon-link': 'ToonLink', 'wolf': 'Wolf', 'villager': 'Villager',
+      'mega-man': 'MegaMan', 'wii-fit-trainer': 'WiiFitTrainer', 'rosalina': 'Rosalina',
+      'little-mac': 'LittleMac', 'greninja': 'Greninja', 'mii-brawler': 'MiiBrawler',
+      'mii-swordfighter': 'MiiSwordfighter', 'mii-gunner': 'MiiGunner', 'palutena': 'Palutena',
+      'pac-man': 'PacMan', 'shulk': 'Shulk', 'duck-hunt': 'DuckHunt', 'ryu': 'Ryu',
+      'ken': 'Ken', 'cloud': 'Cloud', 'corrin': 'Corrin', 'bayonetta': 'Bayonetta',
+      'inkling': 'Inkling', 'ridley': 'Ridley', 'simon': 'Simon', 'richter': 'Richter',
+      'king-k-rool': 'KingKRool', 'isabelle': 'Isabelle', 'incineroar': 'Incineroar',
+      'piranha-plant': 'PiranhaPlant', 'joker': 'Joker', 'hero': 'Hero',
+      'banjo-kazooie': 'BanjoAndKazooie', 'terry': 'Terry', 'byleth': 'Byleth',
+      'min-min': 'MinMin', 'steve': 'Steve', 'sephiroth': 'Sephiroth',
+      'pyra-mythra': 'Pyra', 'kazuya': 'Kazuya', 'sora': 'Sora',
+    };
+
+    function setCharacter(container, imgEl, charId) {
+      if (!charId) { container.style.display = 'none'; return; }
+      const name = CHAR_ICON_MAP[charId];
+      if (!name) { container.style.display = 'none'; return; }
+      imgEl.src = '/Stock Icons/' + name + '1.png';
+      imgEl.alt = charId;
+      imgEl.onerror = function() { container.style.display = 'none'; };
+      container.style.display = '';
     }
 
     const SHAPES = ['sh-rect','sh-rounded','sh-pill','sh-sloped','sh-diamond','sh-arrow','sh-hex','sh-notch','sh-shield','sh-invert','sh-trapezoid','sh-octagon','sh-angle','sh-crest'];
@@ -552,6 +600,8 @@
       $('p2s').textContent = m.player2_score || 0;
       setFlag($('p1f'), m.player1?.flag);
       setFlag($('p2f'), m.player2?.flag);
+      setCharacter($('p1char'), $('p1charImg'), m.character1);
+      setCharacter($('p2char'), $('p2charImg'), m.character2);
       $('phase').textContent = m.round_name || '';
       let phaseKey = '';
       if (m.bracket_type === 'grand_final') phaseKey = 'grand_final';

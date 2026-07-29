@@ -88,3 +88,36 @@ export const SSBU_CHARACTERS = [
 export function getCharacterById(id) {
   return SSBU_CHARACTERS.find(c => c.id === id);
 }
+
+const STOCK_ICON_MAP = {
+  'mario': 'Mario', 'donkey-kong': 'DonkeyKong', 'link': 'Link', 'samus': 'Samus',
+  'dark-samus': 'DarkSamus', 'yoshi': 'Yoshi', 'kirby': 'Kirby', 'fox': 'Fox',
+  'pikachu': 'Pikachu', 'luigi': 'Luigi', 'ness': 'Ness', 'captain-falcon': 'CaptainFalcon',
+  'jigglypuff': 'Jigglypuff', 'peach': 'Peach', 'daisy': 'Daisy', 'bowser': 'Bowser',
+  'ice-climbers': 'IceClimbersPopo', 'sheik': 'Sheik', 'zelda': 'Zelda',
+  'dr-mario': 'DrMario', 'pichu': 'Pichu', 'falco': 'Falco', 'marth': 'Marth',
+  'lucina': 'Lucina', 'young-link': 'YoungLink', 'ganondorf': 'Ganondorf',
+  'mewtwo': 'Mewtwo', 'roy': 'Roy', 'chrom': 'Chrom', 'mr-game-watch': 'MrGameAndWatch',
+  'meta-knight': 'MetaKnight', 'pit': 'Pit', 'dark-pit': 'DarkPit',
+  'zero-suit-samus': 'ZeroSuitSamus', 'wario': 'Wario', 'snake': 'Snake', 'ike': 'Ike',
+  'pokemon-trainer': 'PokemonTrainer', 'diddy-kong': 'DiddyKong', 'lucas': 'Lucas',
+  'sonic': 'Sonic', 'king-dedede': 'KingDedede', 'olimar': 'Olimar', 'lucario': 'Lucario',
+  'robot': 'Rob', 'toon-link': 'ToonLink', 'wolf': 'Wolf', 'villager': 'Villager',
+  'mega-man': 'MegaMan', 'wii-fit-trainer': 'WiiFitTrainer', 'rosalina': 'Rosalina',
+  'little-mac': 'LittleMac', 'greninja': 'Greninja', 'mii-brawler': 'MiiBrawler',
+  'mii-swordfighter': 'MiiSwordfighter', 'mii-gunner': 'MiiGunner', 'palutena': 'Palutena',
+  'pac-man': 'PacMan', 'shulk': 'Shulk', 'duck-hunt': 'DuckHunt', 'ryu': 'Ryu',
+  'ken': 'Ken', 'cloud': 'Cloud', 'corrin': 'Corrin', 'bayonetta': 'Bayonetta',
+  'inkling': 'Inkling', 'ridley': 'Ridley', 'simon': 'Simon', 'richter': 'Richter',
+  'king-k-rool': 'KingKRool', 'isabelle': 'Isabelle', 'incineroar': 'Incineroar',
+  'piranha-plant': 'PiranhaPlant', 'joker': 'Joker', 'hero': 'Hero',
+  'banjo-kazooie': 'BanjoAndKazooie', 'terry': 'Terry', 'byleth': 'Byleth',
+  'min-min': 'MinMin', 'steve': 'Steve', 'sephiroth': 'Sephiroth',
+  'pyra-mythra': 'Pyra', 'kazuya': 'Kazuya', 'sora': 'Sora',
+};
+
+export function getCharacterStockIcon(charId) {
+  const name = STOCK_ICON_MAP[charId];
+  if (!name) return null;
+  return `/Stock Icons/${name}1.png`;
+}
