@@ -388,7 +388,7 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
               </p>
             </div>
 
-            <StagePicker key={stagePickerKey} matchId={matchData.id} allowGentleman={false} onUpdate={refreshMatch} matchData={matchData} />
+              <StagePicker key={stagePickerKey} matchId={matchData.id} allowGentleman={false} onUpdate={refreshMatch} matchData={matchData} socket={socketRef.current} />
 
             <button onClick={() => syncStep('play')}
               className="w-full btn-primary py-3 font-bold">

@@ -541,6 +541,8 @@ router.post('/:id/stage-pick/reset', authRequired, (req, res) => {
   }
   const { resetStagePicks } = require('../logic/stage-pick');
   resetStagePicks(db, req.params.id);
+  const io = req.app.get('io');
+  if (io) io.to(`match:${req.params.id}`).emit('stage:updated', { matchId: req.params.id });
   res.json({ success: true });
 });
 
@@ -567,6 +569,9 @@ router.post('/:id/stage-pick', authRequired, (req, res) => {
   const { mode, picks } = getStageState(db, req.params.id);
   const available = getAvailableStages(picks, mode.mode);
   const currentPhase = getCurrentPhase(picks, match, mode.mode);
+
+  const io = req.app.get('io');
+  if (io) io.to(`match:${req.params.id}`).emit('stage:updated', { matchId: req.params.id });
 
   res.json({ success: true, picks: result, available: available.map(s => s.id), currentPhase, stages: STAGES });
 });
