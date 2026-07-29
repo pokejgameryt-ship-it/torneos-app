@@ -75,13 +75,19 @@ export async function updateParticipant(tournamentId, participantId, data) {
   return res.json();
 }
 
-export async function generateBracket(tournamentId) {
-  const res = await fetch(`${API_BASE}/tournaments/${tournamentId}/generate-bracket`, { method: 'POST' });
+export async function generateBracket(tournamentId, token) {
+  const res = await fetch(`${API_BASE}/tournaments/${tournamentId}/generate-bracket`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` }
+  });
   return res.json();
 }
 
-export async function randomizeParticipants(tournamentId) {
-  const res = await fetch(`${API_BASE}/tournaments/${tournamentId}/randomize`, { method: 'POST' });
+export async function randomizeParticipants(tournamentId, token) {
+  const res = await fetch(`${API_BASE}/tournaments/${tournamentId}/randomize`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` }
+  });
   return res.json();
 }
 

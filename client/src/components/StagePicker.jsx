@@ -14,10 +14,14 @@ const STAGE_IMAGES = {
   'yoshi-s-story': '/stages/yoshi-s-story.png',
 };
 
-export default function StagePicker({ matchId, allowGentleman, onUpdate }) {
+export default function StagePicker({ matchId, allowGentleman, onUpdate, matchData }) {
   const { token, user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const myParticipantId = matchData?.player1?.user_id === user?.id ? matchData.player1_id
+    : matchData?.player2?.user_id === user?.id ? matchData.player2_id
+    : null;
 
   const load = () => {
     fetch(`${API_BASE}/matches/${matchId}/stage-pick`, {
@@ -63,10 +67,10 @@ export default function StagePicker({ matchId, allowGentleman, onUpdate }) {
     if (isGentleman) return 'Gentleman\'s — Eligan donde jugar';
     const cp = data.currentPhase;
     if (!cp) return '';
-    if (cp.phase === 'initial_ban') return `${cp.currentTurn === user?.id ? 'Tu turno: Banea 1 escenario' : 'Esperando baneo...'}`;
-    if (cp.phase === 'initial_pick') return `${cp.currentTurn === user?.id ? 'Tu turno: Elige 1 escenario' : 'Esperando elección...'}`;
-    if (cp.phase === 'counterpick_ban') return `${cp.currentTurn === user?.id ? 'Tu turno: Banea 1 escenario (Counterpick)' : 'Esperando baneo...'}`;
-    if (cp.phase === 'counterpick_pick') return `${cp.currentTurn === user?.id ? 'Tu turno: Elige 1 escenario (Counterpick)' : 'Esperando elección...'}`;
+    if (cp.phase === 'initial_ban') return `${cp.currentTurn === myParticipantId ? 'Tu turno: Banea 1 escenario' : 'Esperando baneo...'}`;
+    if (cp.phase === 'initial_pick') return `${cp.currentTurn === myParticipantId ? 'Tu turno: Elige 1 escenario' : 'Esperando elección...'}`;
+    if (cp.phase === 'counterpick_ban') return `${cp.currentTurn === myParticipantId ? 'Tu turno: Banea 1 escenario (Counterpick)' : 'Esperando baneo...'}`;
+    if (cp.phase === 'counterpick_pick') return `${cp.currentTurn === myParticipantId ? 'Tu turno: Elige 1 escenario (Counterpick)' : 'Esperando elección...'}`;
     return '';
   };
 
@@ -104,7 +108,7 @@ export default function StagePicker({ matchId, allowGentleman, onUpdate }) {
           const isBanned = data.picks?.some(p => p.stage === stage.id && p.action === 'ban');
           const phase = data?.currentPhase;
           const isBanPhase = phase?.phase === 'initial_ban' || phase?.phase === 'counterpick_ban';
-          const isMyTurn = phase?.currentTurn === user?.id;
+          const isMyTurn = phase?.currentTurn === myParticipantId;
 
           return (
             <button key={stage.id} onClick={() => isAvailable && isMyTurn && handleStagePick(stage.id)}

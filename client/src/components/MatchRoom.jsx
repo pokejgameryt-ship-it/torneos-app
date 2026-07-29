@@ -96,8 +96,7 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
     } catch {}
   }
 
-  async function syncStep(newStep, opts = {}) {
-    const { force = false } = opts;
+  async function syncStep(newStep) {
     setStep(newStep);
     if (!isParticipant) return;
     try {
@@ -215,304 +214,298 @@ export default function MatchRoom({ match, tournament, onClose, onUpdate }) {
 
   if (!isParticipant) {
     return (
-      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
-        <div className="bg-dark-light rounded-2xl border border-gray-700 w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
-          <h2 className="text-xl font-bold text-white mb-4">No eres participante</h2>
-          <p className="text-gray-400 mb-4">Solo los jugadores asignados pueden usar esta sala.</p>
-          <button onClick={onClose} className="btn-primary w-full">Cerrar</button>
-        </div>
+      <div className="bg-dark-light rounded-2xl border border-gray-700 p-6">
+        <h2 className="text-xl font-bold text-white mb-4">No eres participante</h2>
+        <p className="text-gray-400 mb-4">Solo los jugadores asignados pueden usar esta sala.</p>
+        <button onClick={onClose} className="btn-primary w-full">Volver al torneo</button>
       </div>
     );
   }
 
   if (isFinished && step !== 'game-over') {
     return (
-      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
-        <div className="bg-dark-light rounded-2xl border border-gray-700 w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
-          <h2 className="text-xl font-bold text-white mb-2">Este combate ya finalizó</h2>
-          <p className="text-gray-400 mb-2">{matchData.player1?.name} {p1Score} - {p2Score} {matchData.player2?.name}</p>
-          <p className="text-green-400 font-semibold mb-4">Ganador: {matchData.winner_id === matchData.player1_id ? matchData.player1?.name : matchData.player2?.name}</p>
-          <button onClick={onClose} className="btn-primary w-full">Cerrar</button>
-        </div>
+      <div className="bg-dark-light rounded-2xl border border-gray-700 p-6">
+        <h2 className="text-xl font-bold text-white mb-2">Este combate ya finalizó</h2>
+        <p className="text-gray-400 mb-2">{matchData.player1?.name} {p1Score} - {p2Score} {matchData.player2?.name}</p>
+        <p className="text-green-400 font-semibold mb-4">Ganador: {matchData.winner_id === matchData.player1_id ? matchData.player1?.name : matchData.player2?.name}</p>
+        <button onClick={onClose} className="btn-primary w-full">Volver al torneo</button>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-dark-light rounded-2xl border border-gray-700 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="bg-dark-light rounded-2xl border border-gray-700 overflow-hidden">
 
-        <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-white">⚔️ Combate #{matchData.match_order}</h2>
-            <p className="text-xs text-gray-400">{matchData.round_name} • Game {currentGame}</p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl">✕</button>
+      <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-white">⚔️ Combate #{matchData.match_order}</h2>
+          <p className="text-xs text-gray-400">{matchData.round_name} • Game {currentGame}</p>
         </div>
+        <button onClick={onClose} className="text-gray-400 hover:text-white text-xl">✕</button>
+      </div>
 
-        <div className="p-3 border-b border-gray-700 bg-dark">
-          <div className="flex items-center justify-between">
-            <div className={`flex-1 text-center ${p1Score > p2Score ? 'text-green-400' : 'text-white'}`}>
-              <p className="font-bold text-sm">{matchData.player1?.name}</p>
-            </div>
-            <div className="px-4 text-center">
-              <span className="text-2xl font-bold text-primary">{p1Score}</span>
-              <span className="text-gray-500 mx-1">-</span>
-              <span className="text-2xl font-bold text-primary">{p2Score}</span>
-              <p className="text-[10px] text-gray-500 mt-0.5">Gana al {winsNeeded}</p>
-            </div>
-            <div className={`flex-1 text-center ${p2Score > p1Score ? 'text-green-400' : 'text-white'}`}>
-              <p className="font-bold text-sm">{matchData.player2?.name}</p>
-            </div>
+      <div className="p-3 border-b border-gray-700 bg-dark">
+        <div className="flex items-center justify-between">
+          <div className={`flex-1 text-center ${p1Score > p2Score ? 'text-green-400' : 'text-white'}`}>
+            <p className="font-bold text-sm">{matchData.player1?.name}</p>
+          </div>
+          <div className="px-4 text-center">
+            <span className="text-2xl font-bold text-primary">{p1Score}</span>
+            <span className="text-gray-500 mx-1">-</span>
+            <span className="text-2xl font-bold text-primary">{p2Score}</span>
+            <p className="text-[10px] text-gray-500 mt-0.5">Gana al {winsNeeded}</p>
+          </div>
+          <div className={`flex-1 text-center ${p2Score > p1Score ? 'text-green-400' : 'text-white'}`}>
+            <p className="font-bold text-sm">{matchData.player2?.name}</p>
           </div>
         </div>
+      </div>
 
-        <div className="p-4">
-          {step === 'rps' && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <span className="text-xs font-semibold text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded-full">
-                  Game {gameNumber} — Piedra Papel Tijeras
-                </span>
-                <p className="text-gray-400 text-xs mt-2">El ganador decide quién banea primero</p>
-              </div>
-
-              {(rpsState.player1_choice && !rpsState.player2_choice && rpsState.my_player_num === 2) && (
-                <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
-              )}
-              {(rpsState.player2_choice && !rpsState.player1_choice && rpsState.my_player_num === 1) && (
-                <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
-              )}
-              {(rpsState.my_confirmed && !rpsState.player1_choice && rpsState.my_player_num === 1 && !rpsState.player2_choice) && (
-                <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
-              )}
-              {(rpsState.my_confirmed && !rpsState.player2_choice && rpsState.my_player_num === 2 && !rpsState.player1_choice) && (
-                <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
-              )}
-
-              {rpsState.winner && rpsState.winner !== 0 && (
-                <div className="text-center">
-                  <p className="text-green-400 font-bold text-lg">
-                    {RPS_NAMES[rpsState.player1_choice]} vs {RPS_NAMES[rpsState.player2_choice]}
-                  </p>
-                  <p className="text-white text-sm mt-1">
-                    Ganador: Jugador {rpsState.winner} ({rpsState.winner === 1 ? matchData.player1?.name : matchData.player2?.name})
-                  </p>
-                </div>
-              )}
-
-              {rpsState.winner === 0 && rpsState.player1_choice && rpsState.player2_choice && (
-                <div className="text-center">
-                  <p className="text-orange-400 font-bold text-lg">
-                    ¡Empate! {RPS_NAMES[rpsState.player1_choice]} vs {RPS_NAMES[rpsState.player2_choice]}
-                  </p>
-                  <p className="text-white text-sm mt-1">Ambos vuelvan a elegir...</p>
-                </div>
-              )}
-
-              {!rpsState.my_confirmed && !rpsState.winner && (
-                <>
-                  <p className="text-center text-gray-300 text-sm">Selecciona tu jugada y confirma:</p>
-                  <div className="flex justify-center gap-4">
-                    {RPS_OPTIONS.map(opt => (
-                      <button key={opt}
-                        onClick={() => setRpsPendingChoice(opt)}
-                        className={`w-20 h-20 rounded-2xl border-2 text-4xl flex items-center justify-center transition-all hover:scale-110 ${
-                          rpsPendingChoice === opt
-                            ? 'border-primary bg-primary/20'
-                            : 'border-gray-700 bg-dark hover:border-gray-500'
-                        }`}>
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    onClick={handleConfirmRPS}
-                    disabled={!rpsPendingChoice || loading}
-                    className="w-full btn-primary py-3 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Confirmando...' : 'Confirmar Elección'}
-                  </button>
-                </>
-              )}
-
-              {rpsState.my_confirmed && !rpsState.winner && (
-                <div className="text-center">
-                  <p className="text-green-400 text-sm font-semibold">✓ Has confirmado tu elección</p>
-                  <button
-                    onClick={() => setRpsPendingChoice(null)}
-                    className="mt-2 text-gray-500 hover:text-gray-300 text-xs underline"
-                  >
-                    Cambiar elección
-                  </button>
-                </div>
-              )}
+      <div className="p-4">
+        {step === 'rps' && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <span className="text-xs font-semibold text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded-full">
+                Game {gameNumber} — Piedra Papel Tijeras
+              </span>
+              <p className="text-gray-400 text-xs mt-2">El ganador decide quién banea primero</p>
             </div>
-          )}
 
-          {step === 'character' && (
-            <div className="space-y-4">
+            {(rpsState.player1_choice && !rpsState.player2_choice && rpsState.my_player_num === 2) && (
+              <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
+            )}
+            {(rpsState.player2_choice && !rpsState.player1_choice && rpsState.my_player_num === 1) && (
+              <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
+            )}
+            {(rpsState.my_confirmed && !rpsState.player1_choice && rpsState.my_player_num === 1 && !rpsState.player2_choice) && (
+              <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
+            )}
+            {(rpsState.my_confirmed && !rpsState.player2_choice && rpsState.my_player_num === 2 && !rpsState.player1_choice) && (
+              <p className="text-center text-yellow-400 text-sm">⏳ Esperando elección del rival...</p>
+            )}
+
+            {rpsState.winner && rpsState.winner !== 0 && (
               <div className="text-center">
-                <span className="text-xs font-semibold text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded-full">
-                  Game {gameNumber} — Selecciona tu personaje
-                </span>
-              </div>
-
-              <div>
-                <p className="text-xs text-gray-400 mb-1">Tu personaje:</p>
-                <CharacterPicker matchId={matchData.id} currentCharacter={myPlayerNum === 1 ? matchData.character1 : matchData.character2} player={myPlayerNum} onUpdate={refreshMatch} />
-              </div>
-
-              <div className="bg-dark rounded-lg p-3 text-center">
-                <p className="text-xs text-gray-400">Rival: {myPlayerNum === 1 ? matchData.player2?.name : matchData.player1?.name}</p>
-                {((myPlayerNum === 1 && matchData.character2) || (myPlayerNum === 2 && matchData.character1)) ? (
-                  <p className="text-xs text-green-400 mt-1">✓ Personaje seleccionado</p>
-                ) : (
-                  <p className="text-xs text-yellow-400 mt-1">⏳ Esperando...</p>
-                )}
-              </div>
-
-              {matchData.character1 && matchData.character2 && (
-                <button onClick={() => { resetStages(); syncStep('stage'); }}
-                  className="w-full btn-primary py-3 font-bold">
-                  Continuar a escenario →
-                </button>
-              )}
-            </div>
-          )}
-
-          {step === 'stage' && tournament.game_type === 'smash' && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <span className="text-xs font-semibold text-blue-400 bg-blue-400/10 px-3 py-1 rounded-full">
-                  Game {gameNumber} — Selecciona escenario
-                </span>
-                <p className="text-gray-400 text-xs mt-2">
-                  {gameNumber === 1
-                    ? 'Ganador RPS banea 3 → Perdedor banea 4 → Ganador elige 1 de 2'
-                    : 'Ganador banea 3 → Perdedor elige 1'}
+                <p className="text-green-400 font-bold text-lg">
+                  {RPS_NAMES[rpsState.player1_choice]} vs {RPS_NAMES[rpsState.player2_choice]}
+                </p>
+                <p className="text-white text-sm mt-1">
+                  Ganador: Jugador {rpsState.winner} ({rpsState.winner === 1 ? matchData.player1?.name : matchData.player2?.name})
                 </p>
               </div>
+            )}
 
-              <StagePicker key={stagePickerKey} matchId={matchData.id} allowGentleman={false} onUpdate={refreshMatch} />
-
-              <button onClick={() => syncStep('play')}
-                className="w-full btn-primary py-3 font-bold">
-                Escenario listo, ¡a jugar! →
-              </button>
-            </div>
-          )}
-
-          {step === 'pokepaste' && tournament.game_type === 'pokemon' && tournament.open_team_sheets && (
-            <div className="space-y-4">
+            {rpsState.winner === 0 && rpsState.player1_choice && rpsState.player2_choice && (
               <div className="text-center">
-                <span className="text-xs font-semibold text-purple-400 bg-purple-400/10 px-3 py-1 rounded-full">
-                  Game {gameNumber} — Adjunta tu equipo (PokePaste)
-                </span>
+                <p className="text-orange-400 font-bold text-lg">
+                  ¡Empate! {RPS_NAMES[rpsState.player1_choice]} vs {RPS_NAMES[rpsState.player2_choice]}
+                </p>
+                <p className="text-white text-sm mt-1">Ambos vuelvan a elegir...</p>
               </div>
-              <PokePasteInput matchId={matchData.id} currentUrl={matchData.team_paste_url} onUpdate={refreshMatch} />
-              <button onClick={() => syncStep('play')} className="w-full btn-primary py-3 font-bold">
-                Equipo listo, ¡a jugar! →
-              </button>
-            </div>
-          )}
+            )}
 
-          {step === 'play' && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <span className="text-xs font-semibold text-green-400 bg-green-400/10 px-3 py-1 rounded-full">
-                  Game {gameNumber} — ¡A jugar!
-                </span>
-              </div>
-
-              <div className="bg-dark rounded-xl p-6 text-center">
-                <div className="text-5xl mb-3">🎮</div>
-                <h3 className="text-lg font-bold text-white mb-2">¡Game {currentGame}!</h3>
-                <div className="flex items-center justify-center gap-3 text-sm text-gray-300 mb-3">
-                  <span className="font-semibold">{matchData.player1?.name}</span>
-                  <span className="text-primary font-bold">VS</span>
-                  <span className="font-semibold">{matchData.player2?.name}</span>
+            {!rpsState.my_confirmed && !rpsState.winner && (
+              <>
+                <p className="text-center text-gray-300 text-sm">Selecciona tu jugada y confirma:</p>
+                <div className="flex justify-center gap-4">
+                  {RPS_OPTIONS.map(opt => (
+                    <button key={opt}
+                      onClick={() => setRpsPendingChoice(opt)}
+                      className={`w-20 h-20 rounded-2xl border-2 text-4xl flex items-center justify-center transition-all hover:scale-110 ${
+                        rpsPendingChoice === opt
+                          ? 'border-primary bg-primary/20'
+                          : 'border-gray-700 bg-dark hover:border-gray-500'
+                      }`}>
+                      {opt}
+                    </button>
+                  ))}
                 </div>
-                <p className="text-gray-400 text-xs">Jueguen la partida fuera de la web</p>
-              </div>
-
-              <button onClick={() => syncStep('report')}
-                className="w-full bg-green-600 hover:bg-green-500 text-white py-3 font-bold rounded-lg transition">
-                Reportar Resultado →
-              </button>
-            </div>
-          )}
-
-          {step === 'report' && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <span className="text-xs font-semibold text-purple-400 bg-purple-400/10 px-3 py-1 rounded-full">
-                  Game {gameNumber} — ¿Quién ganó?
-                </span>
-                <p className="text-yellow-400 text-xs mt-2">Ambos deben reportar el mismo ganador</p>
-              </div>
-
-              <button onClick={() => handleVote(1)} disabled={loading}
-                className={`w-full p-4 rounded-xl border-2 transition text-left flex items-center gap-3 ${
-                  (myPlayerNum === 1 ? p1Vote : p2Vote) === 1
-                    ? 'border-yellow-400 bg-yellow-400/10' : 'border-gray-700 hover:border-green-400 bg-dark'
-                }`}>
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
-                  {matchData.player1?.name?.charAt(0) || '?'}
-                </div>
-                <div className="flex-1">
-                  <p className="text-white font-bold">{matchData.player1?.name}</p>
-                </div>
-                <span className="text-2xl">🏆</span>
-              </button>
-
-              <button onClick={() => handleVote(2)} disabled={loading}
-                className={`w-full p-4 rounded-xl border-2 transition text-left flex items-center gap-3 ${
-                  (myPlayerNum === 1 ? p1Vote : p2Vote) === 2
-                    ? 'border-yellow-400 bg-yellow-400/10' : 'border-gray-700 hover:border-green-400 bg-dark'
-                }`}>
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
-                  {matchData.player2?.name?.charAt(0) || '?'}
-                </div>
-                <div className="flex-1">
-                  <p className="text-white font-bold">{matchData.player2?.name}</p>
-                </div>
-                <span className="text-2xl">🏆</span>
-              </button>
-
-              {(myPlayerNum === 1 ? p1Vote : p2Vote) && (
-                <p className="text-center text-yellow-400 text-xs">⏳ Esperando que el rival reporte el mismo resultado...</p>
-              )}
-
-              <button onClick={() => syncStep('play')} className="w-full text-gray-400 hover:text-white text-sm py-2">
-                ← Volver a jugar
-              </button>
-            </div>
-          )}
-
-          {step === 'game-over' && (
-            <div className="space-y-4">
-              <div className="bg-dark rounded-xl p-6 text-center">
-                <div className="text-5xl mb-3">🏆</div>
-                <h3 className="text-lg font-bold text-white mb-1">Game {gameNumber} finalizado</h3>
-                <p className="text-green-400 font-bold text-lg">{matchResult?.winnerName} gana el game</p>
-                <p className="text-gray-400 text-sm mt-2">Score: {matchData.player1?.name} {p1Score} - {p2Score} {matchData.player2?.name}</p>
-              </div>
-
-              {(p1Score + p2Score) < (winsNeeded * 2 - 1) ? (
-                <button onClick={startNewGame}
-                  className="w-full btn-primary py-3 font-bold text-lg">
-                  Siguiente Game →
+                <button
+                  onClick={handleConfirmRPS}
+                  disabled={!rpsPendingChoice || loading}
+                  className="w-full btn-primary py-3 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Confirmando...' : 'Confirmar Elección'}
                 </button>
+              </>
+            )}
+
+            {rpsState.my_confirmed && !rpsState.winner && (
+              <div className="text-center">
+                <p className="text-green-400 text-sm font-semibold">✓ Has confirmado tu elección</p>
+                <button
+                  onClick={() => setRpsPendingChoice(null)}
+                  className="mt-2 text-gray-500 hover:text-gray-300 text-xs underline"
+                >
+                  Cambiar elección
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 'character' && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <span className="text-xs font-semibold text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded-full">
+                Game {gameNumber} — Selecciona tu personaje
+              </span>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Tu personaje:</p>
+              <CharacterPicker matchId={matchData.id} currentCharacter={myPlayerNum === 1 ? matchData.character1 : matchData.character2} player={myPlayerNum} onUpdate={refreshMatch} />
+            </div>
+
+            <div className="bg-dark rounded-lg p-3 text-center">
+              <p className="text-xs text-gray-400">Rival: {myPlayerNum === 1 ? matchData.player2?.name : matchData.player1?.name}</p>
+              {((myPlayerNum === 1 && matchData.character2) || (myPlayerNum === 2 && matchData.character1)) ? (
+                <p className="text-xs text-green-400 mt-1">✓ Personaje seleccionado</p>
               ) : (
-                <button onClick={() => { if (onUpdate) onUpdate(); onClose(); }}
-                  className="w-full bg-green-600 hover:bg-green-500 text-white py-3 font-bold text-lg rounded-lg transition">
-                  Set finalizado — Cerrar
-                </button>
+                <p className="text-xs text-yellow-400 mt-1">⏳ Esperando...</p>
               )}
             </div>
-          )}
-        </div>
+
+            {matchData.character1 && matchData.character2 && (
+              <button onClick={() => { resetStages(); syncStep('stage'); }}
+                className="w-full btn-primary py-3 font-bold">
+                Continuar a escenario →
+              </button>
+            )}
+          </div>
+        )}
+
+        {step === 'stage' && tournament.game_type === 'smash' && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <span className="text-xs font-semibold text-blue-400 bg-blue-400/10 px-3 py-1 rounded-full">
+                Game {gameNumber} — Selecciona escenario
+              </span>
+              <p className="text-gray-400 text-xs mt-2">
+                {gameNumber === 1
+                  ? 'Ganador RPS banea 3 → Perdedor banea 4 → Ganador elige 1 de 2'
+                  : 'Ganador banea 3 → Perdedor elige 1'}
+              </p>
+            </div>
+
+            <StagePicker key={stagePickerKey} matchId={matchData.id} allowGentleman={false} onUpdate={refreshMatch} matchData={matchData} />
+
+            <button onClick={() => syncStep('play')}
+              className="w-full btn-primary py-3 font-bold">
+              Escenario listo, ¡a jugar! →
+            </button>
+          </div>
+        )}
+
+        {step === 'pokepaste' && tournament.game_type === 'pokemon' && tournament.open_team_sheets && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <span className="text-xs font-semibold text-purple-400 bg-purple-400/10 px-3 py-1 rounded-full">
+                Game {gameNumber} — Adjunta tu equipo (PokePaste)
+              </span>
+            </div>
+            <PokePasteInput matchId={matchData.id} currentUrl={matchData.team_paste_url} onUpdate={refreshMatch} />
+            <button onClick={() => syncStep('play')} className="w-full btn-primary py-3 font-bold">
+              Equipo listo, ¡a jugar! →
+            </button>
+          </div>
+        )}
+
+        {step === 'play' && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <span className="text-xs font-semibold text-green-400 bg-green-400/10 px-3 py-1 rounded-full">
+                Game {gameNumber} — ¡A jugar!
+              </span>
+            </div>
+
+            <div className="bg-dark rounded-xl p-6 text-center">
+              <div className="text-5xl mb-3">🎮</div>
+              <h3 className="text-lg font-bold text-white mb-2">¡Game {currentGame}!</h3>
+              <div className="flex items-center justify-center gap-3 text-sm text-gray-300 mb-3">
+                <span className="font-semibold">{matchData.player1?.name}</span>
+                <span className="text-primary font-bold">VS</span>
+                <span className="font-semibold">{matchData.player2?.name}</span>
+              </div>
+              <p className="text-gray-400 text-xs">Jueguen la partida fuera de la web</p>
+            </div>
+
+            <button onClick={() => syncStep('report')}
+              className="w-full bg-green-600 hover:bg-green-500 text-white py-3 font-bold rounded-lg transition">
+              Reportar Resultado →
+            </button>
+          </div>
+        )}
+
+        {step === 'report' && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <span className="text-xs font-semibold text-purple-400 bg-purple-400/10 px-3 py-1 rounded-full">
+                Game {gameNumber} — ¿Quién ganó?
+              </span>
+              <p className="text-yellow-400 text-xs mt-2">Ambos deben reportar el mismo ganador</p>
+            </div>
+
+            <button onClick={() => handleVote(1)} disabled={loading}
+              className={`w-full p-4 rounded-xl border-2 transition text-left flex items-center gap-3 ${
+                (myPlayerNum === 1 ? p1Vote : p2Vote) === 1
+                  ? 'border-yellow-400 bg-yellow-400/10' : 'border-gray-700 hover:border-green-400 bg-dark'
+              }`}>
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
+                {matchData.player1?.name?.charAt(0) || '?'}
+              </div>
+              <div className="flex-1">
+                <p className="text-white font-bold">{matchData.player1?.name}</p>
+              </div>
+              <span className="text-2xl">🏆</span>
+            </button>
+
+            <button onClick={() => handleVote(2)} disabled={loading}
+              className={`w-full p-4 rounded-xl border-2 transition text-left flex items-center gap-3 ${
+                (myPlayerNum === 1 ? p1Vote : p2Vote) === 2
+                  ? 'border-yellow-400 bg-yellow-400/10' : 'border-gray-700 hover:border-green-400 bg-dark'
+              }`}>
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
+                {matchData.player2?.name?.charAt(0) || '?'}
+              </div>
+              <div className="flex-1">
+                <p className="text-white font-bold">{matchData.player2?.name}</p>
+              </div>
+              <span className="text-2xl">🏆</span>
+            </button>
+
+            {(myPlayerNum === 1 ? p1Vote : p2Vote) && (
+              <p className="text-center text-yellow-400 text-xs">⏳ Esperando que el rival reporte el mismo resultado...</p>
+            )}
+
+            <button onClick={() => syncStep('play')} className="w-full text-gray-400 hover:text-white text-sm py-2">
+              ← Volver a jugar
+            </button>
+          </div>
+        )}
+
+        {step === 'game-over' && (
+          <div className="space-y-4">
+            <div className="bg-dark rounded-xl p-6 text-center">
+              <div className="text-5xl mb-3">🏆</div>
+              <h3 className="text-lg font-bold text-white mb-1">Game {gameNumber} finalizado</h3>
+              <p className="text-green-400 font-bold text-lg">{matchResult?.winnerName} gana el game</p>
+              <p className="text-gray-400 text-sm mt-2">Score: {matchData.player1?.name} {p1Score} - {p2Score} {matchData.player2?.name}</p>
+            </div>
+
+            {(p1Score + p2Score) < (winsNeeded * 2 - 1) ? (
+              <button onClick={startNewGame}
+                className="w-full btn-primary py-3 font-bold text-lg">
+                Siguiente Game →
+              </button>
+            ) : (
+              <button onClick={() => { if (onUpdate) onUpdate(); onClose(); }}
+                className="w-full bg-green-600 hover:bg-green-500 text-white py-3 font-bold text-lg rounded-lg transition">
+                Set finalizado — Volver al torneo
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

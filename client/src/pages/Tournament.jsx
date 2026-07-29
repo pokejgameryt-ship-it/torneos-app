@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import {
   fetchTournament, fetchBracket, addParticipant, addParticipantsBulk,
@@ -9,15 +9,14 @@ import {
   updateParticipant, nextMatch, SOCKET_URL, API_BASE, API_ORIGIN, searchUsers
 } from '../api'
 import { useAuth } from '../context/AuthContext'
-import MatchChat from '../components/MatchChat'
 import StagePicker from '../components/StagePicker'
 import PokePasteInput from '../components/PokePasteInput'
 import CharacterPicker from '../components/CharacterPicker'
-import MatchRoom from '../components/MatchRoom'
 
 function Tournament() {
   const { id } = useParams()
   const { user, token } = useAuth()
+  const navigate = useNavigate()
   const [tournament, setTournament] = useState(null)
   const [bracket, setBracket] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -26,8 +25,6 @@ function Tournament() {
   const [showScoreModal, setShowScoreModal] = useState(false)
   const [p1Score, setP1Score] = useState(0)
   const [p2Score, setP2Score] = useState(0)
-  const [chatMatchId, setChatMatchId] = useState(null)
-  const [matchRoomMatch, setMatchRoomMatch] = useState(null)
   const [userSearchQuery, setUserSearchQuery] = useState('')
   const [userSearchResults, setUserSearchResults] = useState([])
   const [showUserSearch, setShowUserSearch] = useState(false)
@@ -100,14 +97,14 @@ function Tournament() {
 
   async function handleGenerateBracket() {
     if (!confirm('¿Generar el bracket? Se eliminarán los partidos existentes.')) return
-    await generateBracket(id)
+    await generateBracket(id, token)
     setTab('bracket')
     loadData()
   }
 
   async function handleRandomize() {
     if (!confirm('¿Aleatorizar el orden de los participantes?')) return
-    await randomizeParticipants(id)
+    await randomizeParticipants(id, token)
     loadData()
   }
 
@@ -358,7 +355,7 @@ function Tournament() {
           onUndo={handleUndo}
           onNextMatch={handleNextMatch}
           refresh={loadData}
-          onOpenMatchRoom={setMatchRoomMatch}
+          onOpenMatchRoom={(match) => navigate(`/match/${match.id}`)}
         />
       )}
 
@@ -383,14 +380,6 @@ function Tournament() {
           onSubmit={handleSubmitResult}
           onClose={() => setShowScoreModal(false)}
         />
-      )}
-
-      {chatMatchId && (
-        <MatchChat matchId={chatMatchId} onClose={() => setChatMatchId(null)} />
-      )}
-
-      {matchRoomMatch && (
-        <MatchRoom match={matchRoomMatch} tournament={tournament} onClose={() => setMatchRoomMatch(null)} onUpdate={loadBracket} />
       )}
     </div>
   )

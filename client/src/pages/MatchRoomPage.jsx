@@ -92,8 +92,8 @@ export default function MatchRoomPage() {
           </div>
           {isParticipant && (
             <button
-              onClick={() => setChatOpen(true)}
-              className="btn-primary text-sm flex items-center gap-1"
+              onClick={() => setChatOpen(!chatOpen)}
+              className={`text-sm flex items-center gap-1 px-3 py-1.5 rounded-lg transition ${chatOpen ? 'bg-primary text-white' : 'bg-primary/20 text-primary hover:bg-primary/30'}`}
             >
               💬 Chat
             </button>
@@ -102,17 +102,37 @@ export default function MatchRoomPage() {
       </header>
 
       <div className="container mx-auto px-4 py-6">
-        <MatchRoom
-          match={match}
-          tournament={tournament}
-          onClose={() => navigate(`/tournament/${tournament.id}/play`)}
-          onUpdate={loadData}
-        />
-      </div>
+        <div className="flex gap-4 h-[calc(100vh-120px)]">
+          <div className={`flex-1 overflow-y-auto ${chatOpen ? 'lg:pr-0' : ''}`}>
+            <MatchRoom
+              match={match}
+              tournament={tournament}
+              onClose={() => navigate(`/tournament/${tournament.id}/play`)}
+              onUpdate={loadData}
+            />
+          </div>
 
-      {chatOpen && isParticipant && (
-        <MatchChat matchId={match.id} onClose={() => setChatOpen(false)} />
-      )}
+          {isParticipant && chatOpen && (
+            <>
+              <div className="hidden lg:block w-80 flex-shrink-0">
+                <MatchChat matchId={match.id} className="h-full" />
+              </div>
+
+              <div className="lg:hidden fixed inset-0 z-40 bg-dark/80" onClick={() => setChatOpen(false)}>
+                <div className="absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-dark-light border-l border-gray-700 flex flex-col" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between p-3 border-b border-gray-700">
+                    <span className="text-white font-bold text-sm">💬 Chat del Set</span>
+                    <button onClick={() => setChatOpen(false)} className="text-gray-400 hover:text-white">✕</button>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <MatchChat matchId={match.id} className="h-full border-0 rounded-none" />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
